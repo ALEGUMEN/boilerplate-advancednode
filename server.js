@@ -14,7 +14,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.route('/').get((req, res) => {
-
+  res.render('index', { 
+    title: 'Mi página', 
+    message: '¡Pug funciona correctamente!' 
+  });
 });
 
 const PORT = process.env.PORT || 3000;

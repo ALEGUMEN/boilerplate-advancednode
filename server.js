@@ -14,9 +14,23 @@ app.use((req, res, next) => {
   next();
 });
 
+// Views & view engine (deja como ya tenías)
+app.set('views', path.join(__dirname, 'views/pug'));
 app.set('view engine', 'pug');
-app.set('views', './views/pug');
-fccTesting(app); // For fCC testing purposes
+
+// --- Session y Passport (IMPORTANTE: antes de las rutas) ---
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false } // usar true en producción con HTTPS
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+// -----------------------------------------------------------
+
+fccTesting(app); // For FCC testing purposes
 
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use(express.json());
@@ -26,8 +40,7 @@ app.route('/').get((req, res) => {
   res.render('index', { title: 'Hello', message: 'Please log in' });
 });
 
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Listening on port ${PORT}`);
+  console.log('Listening on port ' + PORT);
 });

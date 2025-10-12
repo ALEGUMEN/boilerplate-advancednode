@@ -7,7 +7,7 @@ const fccTesting = require('./freeCodeCamp/fcctesting.js');
 
 const app = express();
 
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, 'views/pug'));
 
 app.set('view engine', 'pug');
 

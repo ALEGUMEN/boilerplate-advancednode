@@ -1,6 +1,9 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
+const path = require('path');                 // ✅ agregar path
+const session = require('express-session');  // ✅ agregar express-session
+const passport = require('passport');        // ✅ agregar passport
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 
@@ -14,16 +17,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Views & view engine (deja como ya tenías)
+// Views & view engine (una sola configuración correcta)
 app.set('views', path.join(__dirname, 'views/pug'));
 app.set('view engine', 'pug');
 
-// --- Session y Passport (IMPORTANTE: antes de las rutas) ---
+// --- Session y Passport (IMPORTANTE: antes de fccTesting y antes de las rutas) ---
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false } // usar true en producción con HTTPS
+  cookie: { secure: false } // en producción con HTTPS pon true
 }));
 
 app.use(passport.initialize());

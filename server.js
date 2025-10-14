@@ -67,9 +67,11 @@ myDB(async client => {
   });
 
   // DESERIALIZACIÓN
-  passport.deserializeUser((id, done) => {
+    passport.deserializeUser((id, done) => {
     myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
-      done(err, doc); // devuelve doc real
+      // Si ocurre un error, lo pasamos; si no, pasamos el doc (aunque sea null)
+      if (err) return done(err, null);
+      return done(null, doc);
     });
   });
 

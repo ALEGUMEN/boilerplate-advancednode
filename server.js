@@ -4,7 +4,7 @@ const express = require('express');
 const path = require('path');                 
 const session = require('express-session');  
 const passport = require('passport');        
-const LocalStrategy = require('passport-local'); // ✅ IMPORTANTE
+const LocalStrategy = require('passport-local'); 
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const { ObjectId } = require('mongodb');
@@ -33,13 +33,21 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false } // true solo si usas HTTPS
+  cookie: { secure: false } 
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
 // --- FreeCodeCamp testing ---
 fccTesting(app);
+
+// ---------------------
+// Middleware para proteger rutas
+// ---------------------
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  res.redirect('/');
+}
 
 // -----------------------------------------------------------
 // 🔹 Conexión a base de datos + rutas + Passport
@@ -87,24 +95,16 @@ myDB(async client => {
     });
   });
 
-  // -----------------------------------------------------------
   // RUTA /login para autenticar usuario
-  // -----------------------------------------------------------
   app.route('/login').post(
     passport.authenticate('local', { failureRedirect: '/' }),
     (req, res) => {
-      // Si pasa la autenticación, se redirige a /profile
       res.redirect('/profile');
     }
   );
 
-  // -----------------------------------------------------------
-  // RUTA /profile
-  // -----------------------------------------------------------
-  app.route('/profile').get((req, res) => {
-    if (!req.user) {
-      return res.redirect('/');
-    }
+  // RUTA /profile protegida por middleware
+  app.route('/profile').get(ensureAuthenticated, (req, res) => {
     res.render('profile', { username: req.user.username });
   });
 

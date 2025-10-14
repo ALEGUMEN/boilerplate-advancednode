@@ -1,12 +1,12 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const path = require('path');                 // ✅ agregar path
-const session = require('express-session');  // ✅ agregar express-session
-const passport = require('passport');        // ✅ agregar passport
+const path = require('path');            
+const session = require('express-session');
+const passport = require('passport');      
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
-
+const { ObjectID } = require('mongodb');
 const app = express();
 
 // add this CORS header
@@ -46,4 +46,24 @@ app.route('/').get((req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('Listening on port ' + PORT);
+});
+
+
+myDB(async (client) => {
+  const db = client.db('fcc');      // <--- Base de datos que creaste
+  const usersCollection = db.collection('users'); // <--- Colección 'users'
+
+  // SERIALIZACIÓN
+  passport.serializeUser((user, done) => {
+    done(null, user._id);
+  });
+
+  // DESERIALIZACIÓN
+  passport.deserializeUser((id, done) => {
+    usersCollection.findOne({ _id: new ObjectID(id) }, (err, doc) => {
+      done(err, doc);
+    });
+  });
+
+  console.log("Passport serialization/deserialization ready!");
 });

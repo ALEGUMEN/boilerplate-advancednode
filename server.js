@@ -6,7 +6,7 @@ const session = require('express-session');
 const passport = require('passport');
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
-const { ObjectId } = require('mongodb'); // usa ObjectId (no ObjectID)
+const { ObjectId } = require('mongodb'); // Correcto: ObjectId
 const app = express();
 
 // --- Middlewares base ---
@@ -53,7 +53,8 @@ myDB(async client => {
   // DESERIALIZACIÓN
   passport.deserializeUser((id, done) => {
     myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
-      done(err, doc);
+      if (err) return done(err);
+      done(null, doc); // ✅ doc real, no null
     });
   });
 

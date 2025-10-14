@@ -108,6 +108,15 @@ myDB(async client => {
     res.render('profile', { username: req.user.username });
   });
 
+  // RUTA /logout
+  app.route('/logout').get((req, res) => {
+    req.logout(() => {
+      // Una vez cerrada la sesión, redirige al home
+      res.redirect('/');
+    });
+  });
+
+
   console.log("✅ Conexión a MongoDB y Passport listos");
 
 }).catch(e => {

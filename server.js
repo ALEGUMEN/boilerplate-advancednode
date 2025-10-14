@@ -59,9 +59,9 @@ myDB(async client => {
     myDataBase.findOne({ username: username }, (err, user) => {
       console.log(`User ${username} attempted to log in.`);
       if (err) return done(err);
-      if (!user) return done(null, false); // no existe el usuario
-      if (password !== user.password) return done(null, false); // contraseña incorrecta
-      return done(null, user); // autenticación correcta
+      if (!user) return done(null, false);
+      if (password !== user.password) return done(null, false);
+      return done(null, user);
     });
   }));
 
@@ -82,8 +82,30 @@ myDB(async client => {
   app.route('/').get((req, res) => {
     res.render('index', {
       title: 'Connected to Database',
-      message: 'Please login'
+      message: 'Please login',
+      showLogin: true
     });
+  });
+
+  // -----------------------------------------------------------
+  // RUTA /login para autenticar usuario
+  // -----------------------------------------------------------
+  app.route('/login').post(
+    passport.authenticate('local', { failureRedirect: '/' }),
+    (req, res) => {
+      // Si pasa la autenticación, se redirige a /profile
+      res.redirect('/profile');
+    }
+  );
+
+  // -----------------------------------------------------------
+  // RUTA /profile
+  // -----------------------------------------------------------
+  app.route('/profile').get((req, res) => {
+    if (!req.user) {
+      return res.redirect('/');
+    }
+    res.render('profile', { username: req.user.username });
   });
 
   console.log("✅ Conexión a MongoDB y Passport listos");

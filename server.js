@@ -4,6 +4,7 @@ const express = require('express');
 const path = require('path');                 
 const session = require('express-session');  
 const passport = require('passport');        
+const LocalStrategy = require('passport-local'); // ✅ IMPORTANTE
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const { ObjectId } = require('mongodb');
@@ -53,13 +54,16 @@ myDB(async client => {
     console.log('Usuario de prueba insertado');
   }
 
-  // RUTA PRINCIPAL
-  app.route('/').get((req, res) => {
-    res.render('index', {
-      title: 'Connected to Database',
-      message: 'Please login'
+  // --- Local Strategy ---
+  passport.use(new LocalStrategy((username, password, done) => {
+    myDataBase.findOne({ username: username }, (err, user) => {
+      console.log(`User ${username} attempted to log in.`);
+      if (err) return done(err);
+      if (!user) return done(null, false); // no existe el usuario
+      if (password !== user.password) return done(null, false); // contraseña incorrecta
+      return done(null, user); // autenticación correcta
     });
-  });
+  }));
 
   // SERIALIZACIÓN
   passport.serializeUser((user, done) => {
@@ -67,11 +71,18 @@ myDB(async client => {
   });
 
   // DESERIALIZACIÓN
-    passport.deserializeUser((id, done) => {
+  passport.deserializeUser((id, done) => {
     myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
-      // Si ocurre un error, lo pasamos; si no, pasamos el doc (aunque sea null)
       if (err) return done(err, null);
       return done(null, doc);
+    });
+  });
+
+  // RUTA PRINCIPAL
+  app.route('/').get((req, res) => {
+    res.render('index', {
+      title: 'Connected to Database',
+      message: 'Please login'
     });
   });
 

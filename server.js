@@ -60,10 +60,11 @@ myDB(async (client) => {
 
   // DESERIALIZACIÓN
   passport.deserializeUser((id, done) => {
-    usersCollection.findOne({ _id: new ObjectID(id) }, (err, doc) => {
+/*    usersCollection.findOne({ _id: new ObjectID(id) }, (err, doc) => {
       done(err, doc);
-    });
+    });*/
+    done(null, null);
   });
-
+  
   console.log("Passport serialization/deserialization ready!");
 });

@@ -1,18 +1,16 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const path = require('path');                 // ✅ agregar path
-const session = require('express-session');  // ✅ agregar express-session
-const passport = require('passport');        // ✅ agregar passport
+const path = require('path');                 
+const session = require('express-session');  
+const passport = require('passport');        
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
-const passport = require('passport');
 const { ObjectId } = require('mongodb');
-
 
 const app = express();
 
-// add this CORS header
+// --- CORS header ---
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -20,9 +18,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Views & view engine (una sola configuración correcta)
+// --- Views ---
 app.set('views', path.join(__dirname, 'views/pug'));
 app.set('view engine', 'pug');
+
+// --- Middlewares ---
+app.use('/public', express.static(process.cwd() + '/public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // --- Sesión y Passport ---
 app.use(session({
@@ -31,25 +34,11 @@ app.use(session({
   saveUninitialized: true,
   cookie: { secure: false } // true solo si usas HTTPS
 }));
-
 app.use(passport.initialize());
 app.use(passport.session());
 
 // --- FreeCodeCamp testing ---
 fccTesting(app);
-
-app.use(passport.initialize());
-app.use(passport.session());
-// -----------------------------------------------------------
-
-
-app.use('/public', express.static(process.cwd() + '/public'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-app.route('/').get((req, res) => {
-  res.render('index', { title: 'Hello', message: 'Please log in' });
-});
 
 // -----------------------------------------------------------
 // 🔹 Conexión a base de datos + rutas + Passport
@@ -93,7 +82,7 @@ myDB(async client => {
   });
 });
 
-// --- Escucha del servidor fuera del bloque ---
+// --- Escucha del servidor ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('🌐 Servidor escuchando en puerto ' + PORT);

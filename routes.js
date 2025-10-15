@@ -1,7 +1,8 @@
 'use strict';
 const bcrypt = require('bcrypt');
+const passport = require('passport');
 
-module.exports = function(app, myDataBase, passport) {
+module.exports = function(app, myDataBase) {
 
   // Middleware para proteger rutas
   function ensureAuthenticated(req, res, next) {
@@ -64,20 +65,18 @@ module.exports = function(app, myDataBase, passport) {
     });
   });
 
-  // --- GitHub Authentication ---
-  app.route('/auth/github')
-    .get(passport.authenticate('github'));
+  // --- GitHub Auth ---
+  app.route('/auth/github').get(passport.authenticate('github'));
 
   app.route('/auth/github/callback')
-    .get(
-      passport.authenticate('github', { failureRedirect: '/' }),
-      (req, res) => {
-        res.redirect('/profile');
-      }
-    );
+    .get(passport.authenticate('github', { failureRedirect: '/' }), (req, res) => {
+      res.redirect('/profile');
+    });
 
   // --- 404 ---
   app.use((req, res) => {
     res.status(404).type('text').send('Not Found');
   });
+
 };
+

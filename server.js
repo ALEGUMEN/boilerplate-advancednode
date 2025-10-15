@@ -109,12 +109,18 @@ myDB(async client => {
   });
 
   // RUTA /logout
-  app.route('/logout').get((req, res) => {
-    req.logout(() => {
-      // Una vez cerrada la sesión, redirige al home
+    app.route('/logout').get((req, res, next) => {
+    req.logout(err => {
+      if (err) return next(err);
       res.redirect('/');
     });
   });
+
+  app.use((req, res, next) => {
+  res.status(404)
+    .type('text')
+    .send('Not Found');
+});
 
 
   console.log("✅ Conexión a MongoDB y Passport listos");

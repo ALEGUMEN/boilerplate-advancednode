@@ -5,6 +5,7 @@ const path = require('path');
 const session = require('express-session');  
 const passport = require('passport');        
 const LocalStrategy = require('passport-local'); 
+const bcrypt = require('bcrypt'); // ✅ bcrypt agregado
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const { ObjectId } = require('mongodb');
@@ -58,7 +59,10 @@ myDB(async client => {
   // Inserta un usuario de prueba si la colección está vacía
   const count = await myDataBase.countDocuments();
   if (count === 0) {
-    await myDataBase.insertOne({ username: 'alice', password: '12345' });
+    await myDataBase.insertOne({
+      username: 'alice',
+      password: bcrypt.hashSync('12345', 12) // hash de contraseña
+    });
     console.log('Usuario de prueba insertado');
   }
 
@@ -68,7 +72,7 @@ myDB(async client => {
       console.log(`User ${username} attempted to log in.`);
       if (err) return done(err);
       if (!user) return done(null, false);
-      if (password !== user.password) return done(null, false);
+      if (!bcrypt.compareSync(password, user.password)) return done(null, false); // comparar hash
       return done(null, user);
     });
   }));
@@ -96,38 +100,31 @@ myDB(async client => {
     });
   });
 
-  app.route('/register')
-  .post((req, res, next) => {
-    myDataBase.findOne({ username: req.body.username }, (err, user) => {
-      if (err) {
-        next(err);
-      } else if (user) {
-        res.redirect('/');
-      } else {
+  // RUTA /register
+  app.route('/register').post(
+    (req, res, next) => {
+      myDataBase.findOne({ username: req.body.username }, (err, user) => {
+        if (err) return next(err);
+        if (user) return res.redirect('/');
+
+        // hash de la contraseña antes de insertar
+        const hash = bcrypt.hashSync(req.body.password, 12);
         myDataBase.insertOne({
           username: req.body.username,
-          password: req.body.password
-        },
-          (err, doc) => {
-            if (err) {
-              res.redirect('/');
-            } else {
-              // The inserted document is held within
-              // the ops property of the doc
-              next(null, doc.ops[0]);
-            }
-          }
-        )
-      }
-    })
-  },
+          password: hash
+        }, (err, doc) => {
+          if (err) return res.redirect('/');
+          next(null, doc.ops[0]);
+        });
+      });
+    },
     passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res, next) => {
+    (req, res) => {
       res.redirect('/profile');
     }
   );
-  
-  // RUTA /login para autenticar usuario
+
+  // RUTA /login
   app.route('/login').post(
     passport.authenticate('local', { failureRedirect: '/' }),
     (req, res) => {
@@ -135,24 +132,23 @@ myDB(async client => {
     }
   );
 
-  // RUTA /profile protegida por middleware
+  // RUTA /profile protegida
   app.route('/profile').get(ensureAuthenticated, (req, res) => {
     res.render('profile', { username: req.user.username });
   });
 
   // RUTA /logout
-    app.route('/logout')
-      .get((req, res) => {
-        req.logout();
-        res.redirect('/');
+  app.route('/logout').get((req, res, next) => {
+    req.logout(err => {
+      if (err) return next(err);
+      res.redirect('/');
     });
+  });
 
+  // 404
   app.use((req, res, next) => {
-  res.status(404)
-    .type('text')
-    .send('Not Found');
-});
-
+    res.status(404).type('text').send('Not Found');
+  });
 
   console.log("✅ Conexión a MongoDB y Passport listos");
 

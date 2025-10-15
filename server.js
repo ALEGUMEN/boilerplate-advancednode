@@ -1,53 +1,62 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const path = require('path');                 
-const session = require('express-session');  
-const passport = require('passport');        
-const bcrypt = require('bcrypt');
+const passport = require('passport');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const myDB = require('./connection');
+const routes = require('./routes');
+const auth = require('./auth');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
+const cors = require('cors');
+const path = require('path');
 
 const app = express();
 
-// --- CORS header ---
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  next();
-});
-
-// --- Views ---
-app.set('views', path.join(__dirname, 'views/pug'));
-app.set('view engine', 'pug');
-
-// --- Middlewares ---
-app.use('/public', express.static(process.cwd() + '/public'));
+// ✅ Middleware base
+fccTesting(app);
+app.use(cors());
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- Sesión y Passport ---
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: true,
-  saveUninitialized: true
-}));
+// ✅ Configuración de la vista con Pug
+app.set('view engine', 'pug');
 
-// Inicialización de Passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Conexión a Mongo y configuración de Passport
+// ✅ Conexión y configuración principal
 myDB(async client => {
-  const myDataBase = await client.db('fcc').collection('users');
+  const db = await client.db('fcc');
+  const usersCollection = await db.collection('users');
 
-  auth(app, myDataBase);
-  routes(app, myDataBase);
+  // ✅ Sesiones con almacenamiento en MongoDB
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || 'keyboard cat',
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({
+        mongoUrl: process.env.MONGO_URI,
+        dbName: 'fcc',
+        collectionName: 'sessions'
+      }),
+      cookie: { secure: false } // poner true si usas HTTPS
+    })
+  );
 
-  app.listen(PORT, () => {
-    console.log(`✅ Server listening on port ${PORT}`);
+  // ✅ Configurar Passport
+  auth(passport, usersCollection);
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // ✅ Rutas
+  routes(app, passport);
+
+  // ✅ Inicio del servidor
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Listening on port ${port}`);
   });
 }).catch(e => {
+  console.error('Error: Unable to Connect to Database');
   console.error(e);
 });

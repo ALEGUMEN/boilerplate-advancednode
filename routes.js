@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt');
 
 module.exports = function (app, myDataBase) {
   app.route('/').get((req, res) => {
-    // Change the response to render the Pug template
     res.render('pug', {
       title: 'Connected to Database',
       message: 'Please login',
@@ -19,9 +18,8 @@ module.exports = function (app, myDataBase) {
     res.render(process.cwd() + 'pug/profile', { username: req.user.username });
   });
   
-  // 1. ADDED: New GET route for /chat
+  // ADDED: New GET route for /chat
   app.route('/chat').get(ensureAuthenticated, (req, res) => {
-    // NOTE: Assuming your pug file is named 'chat.pug' and is in the views directory
     res.render('chat', { user: req.user }); 
   });  
 
@@ -58,11 +56,9 @@ module.exports = function (app, myDataBase) {
   });
   app.route('/auth/github').get(passport.authenticate('github'));
   
-  // 2. ALTERED: /auth/github/callback route
+  // ALTERED: /auth/github/callback route
   app.route('/auth/github/callback').get(passport.authenticate('github', { failureRedirect: '/'}), (req, res) => {
-    // Setting req.session.user_id
     req.session.user_id = req.user.id; 
-    // Redirecting to /chat
     res.redirect('/chat'); 
   });
 

@@ -18,9 +18,13 @@ module.exports = function (app, myDataBase) {
   app.route('/profile').get(ensureAuthenticated, (req, res) => {
     res.render(process.cwd() + 'pug/profile', { username: req.user.username });
   });
+  
+  // 1. ADDED: New GET route for /chat
   app.route('/chat').get(ensureAuthenticated, (req, res) => {
-    res.render('pug/chat', { user: req.user });
+    // NOTE: Assuming your pug file is named 'chat.pug' and is in the views directory
+    res.render('chat', { user: req.user }); 
   });  
+
   app.route('/logout').get((req, res) => {
       req.logout();
       res.redirect('/');
@@ -53,8 +57,12 @@ module.exports = function (app, myDataBase) {
     res.status(404).type('text').send('Not Found')
   });
   app.route('/auth/github').get(passport.authenticate('github'));
+  
+  // 2. ALTERED: /auth/github/callback route
   app.route('/auth/github/callback').get(passport.authenticate('github', { failureRedirect: '/'}), (req, res) => {
+    // Setting req.session.user_id
     req.session.user_id = req.user.id; 
+    // Redirecting to /chat
     res.redirect('/chat'); 
   });
 

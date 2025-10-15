@@ -4,11 +4,13 @@ const passport = require('passport');
 
 module.exports = function(app, myDataBase) {
 
+  // Middleware para proteger rutas
   function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
     res.redirect('/');
   }
 
+  // --- RUTA PRINCIPAL ---
   app.route('/').get((req, res) => {
     res.render('index', {
       title: 'Connected to Database',
@@ -19,6 +21,7 @@ module.exports = function(app, myDataBase) {
     });
   });
 
+  // --- REGISTER ---
   app.route('/register').post(
     (req, res, next) => {
       myDataBase.findOne({ username: req.body.username }, (err, user) => {
@@ -41,6 +44,7 @@ module.exports = function(app, myDataBase) {
     }
   );
 
+  // --- LOGIN ---
   app.route('/login').post(
     passport.authenticate('local', { failureRedirect: '/' }),
     (req, res) => {
@@ -48,10 +52,12 @@ module.exports = function(app, myDataBase) {
     }
   );
 
+  // --- PROFILE ---
   app.route('/profile').get(ensureAuthenticated, (req, res) => {
     res.render('profile', { username: req.user.username });
   });
 
+  // --- LOGOUT ---
   app.route('/logout').get((req, res, next) => {
     req.logout(err => {
       if (err) return next(err);
@@ -71,5 +77,4 @@ module.exports = function(app, myDataBase) {
   app.use((req, res) => {
     res.status(404).type('text').send('Not Found');
   });
-
 };

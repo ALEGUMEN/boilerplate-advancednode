@@ -65,22 +65,22 @@ myDB(async (client) => {
   let currentUsers = 0;
 
   io.on('connection', socket => {
-  currentUsers++;
-  console.log('A user has connected');
+    currentUsers++;
+    console.log('A user has connected');
 
-  // Emitir evento 'user' al cliente
-  io.emit('user', { name: 'A user', currentUsers, connected: true });
+    // Emitir evento 'user' al cliente
+    io.emit('user', { name: 'A user', currentUsers, connected: true });
 
-  // Escuchar mensajes del cliente
-  socket.on('chat message', msg => {
-    const userName = socket.request.session?.passport?.user || 'Anonymous';
-    io.emit('chat message', { name: userName, message: msg });
-  });
+    // Escuchar mensajes del cliente
+    socket.on('chat message', msg => {
+      const userName = socket.request.session?.passport?.user || 'Anonymous';
+      io.emit('chat message', { name: userName, message: msg });
+    });
 
     // Manejar desconexión
     socket.on('disconnect', () => {
-          currentUsers--;
-          io.emit('user', { name: 'A user', currentUsers, connected: false });
+      currentUsers--;
+      io.emit('user', { name: 'A user', currentUsers, connected: false });
     });
   });
 

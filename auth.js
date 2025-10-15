@@ -24,15 +24,15 @@ module.exports = function(passport, myDataBase) {
       callbackURL: process.env.GITHUB_CALLBACK_URL
     },
     function(accessToken, refreshToken, profile, cb) {
-      // Log para verificar en consola (FCC test lo espera)
+      // Ver perfil en consola para test
       console.log(profile);
 
-      // Buscamos si el usuario ya existe
+      // Buscar usuario existente
       myDataBase.findOne({ githubId: profile.id }, (err, user) => {
         if (err) return cb(err);
-        if (user) return cb(null, user); // Usuario existente
+        if (user) return cb(null, user);
 
-        // Nuevo usuario: lo insertamos en la DB
+        // Insertar nuevo usuario
         myDataBase.insertOne({
           githubId: profile.id,
           username: profile.username
@@ -58,3 +58,4 @@ module.exports = function(passport, myDataBase) {
   });
 
 };
+

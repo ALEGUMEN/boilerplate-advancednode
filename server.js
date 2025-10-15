@@ -57,11 +57,8 @@ myDB(async client => {
   }
 
   // --- Auth y Routes ---
-  const auth = require('./auth.js');
-  auth(passport, myDataBase);
-
-  const routes = require('./routes.js');
-  routes(app, myDataBase);
+  require('./auth.js')(passport, myDataBase);
+  require('./routes.js')(app, myDataBase);
 
   console.log('✅ Conexión a MongoDB y Passport listos');
 
@@ -77,3 +74,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log('🌐 Servidor escuchando en puerto ' + PORT);
 });
+

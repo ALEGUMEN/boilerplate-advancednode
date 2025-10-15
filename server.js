@@ -11,13 +11,35 @@ const auth = require('./auth.js');
 
 const app = express();
 
-// 1. ADDED/CORRECTED: Require/Instantiate http and socket.io
+// Required setup for Socket.IO
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
 app.set('view engine', 'pug');
 
-// ... (other requires)
+// Fixes ReferenceError: passportSocketIo is not defined
+const passportSocketIo = require('passport.socketio');
+const cookieParser = require('cookie-parser');
+const MongoStore = require('connect-mongo')(session);
+const URI = process.env.MONGO_URI;
+const store = new MongoStore({ url: URI });
+
+fccTesting(app); // For fCC testing purposes
+app.use('/public', express.static(process.cwd() + '/public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(session({
+  secret: mySecret,
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false },
+  key: 'express.sid',
+  store: store,
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 io.use(
   passportSocketIo.authorize({
@@ -36,7 +58,7 @@ myDB(async (client) => {
   routes(app, myDataBase);
   auth(app, myDataBase);
 
-  // 3. ADDED: Socket.IO connection listener inside the database connection
+  // Connection listener as required by the challenge
   io.on('connection', socket => {
     let currentUsers = 0;
     console.log('A user has connected');
@@ -51,7 +73,6 @@ myDB(async (client) => {
     });
 
     socket.on('disconnect', () => {
-      /*anything you want to do on disconnect*/
       console.log('A user has disconnected');
       --currentUsers;
       io.emit('user', {
@@ -69,7 +90,6 @@ myDB(async (client) => {
 
 function onAuthorizeSuccess(data, accept) {
   console.log('successful connection to socket.io');
-
   accept(null, true);
 }
 
@@ -79,7 +99,7 @@ function onAuthorizeFail(data, message, error, accept) {
   accept(null, false);
 }
 
-// 2. ALTERED: http.listen instead of app.listen
+// Listen from the http server, not the express app
 http.listen(process.env.PORT || 3000, () => {
   console.log('Listening on port ' + process.env.PORT);
 });

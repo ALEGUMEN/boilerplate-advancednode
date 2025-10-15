@@ -1,76 +1,55 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const path = require('path');
+const bodyParser = require('body-parser');
 const session = require('express-session');
 const passport = require('passport');
-const bcrypt = require('bcrypt');
-const myDB = require('./connection');
-const fccTesting = require('./freeCodeCamp/fcctesting.js');
-
+const mongo = require('mongodb').MongoClient;
+const routes = require('./routes.js');
+const auth = require('./auth.js');
 const app = express();
+const http = require('http').Server(app);
 
-// --- CORS header ---
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  next();
+// Conexión a la base de datos (MongoDB)
+mongo.connect(process.env.DATABASE, (err, client) => {
+    if (err) {
+        console.log('Database error: ' + err);
+    } else {
+        console.log('Successful database connection');
+
+        const db = client.db('fcc-advancednode'); // Reemplaza con el nombre de tu base de datos
+
+        app.use('/public', express.static(process.cwd() + '/public'));
+        app.use(bodyParser.json());
+        app.use(bodyParser.urlencoded({ extended: true }));
+        app.set('view engine', 'pug');
+
+        // Configuración de sesiones
+        app.use(session({
+          secret: process.env.SESSION_SECRET,
+          resave: true,
+          saveUninitialized: true,
+          cookie: { secure: false }
+        }));
+        
+        // Inicialización de Passport
+        app.use(passport.initialize());
+        app.use(passport.session());
+
+        // Carga y configuración de Passport (estrategias y serialización)
+        auth(app, db);
+        
+        // Carga y conexión de rutas
+        routes(app, db); 
+
+        // Manejo de error 404
+        app.use((req, res, next) => {
+          res.status(404).sendFile(process.cwd() + '/views/404.html');
+        });
+
+        const PORT = process.env.PORT || 3000;
+        http.listen(PORT, () => {
+          console.log('Listening on port ' + PORT);
+        });
+    }
 });
-
-// --- Views ---
-app.set('views', path.join(__dirname, 'views/pug'));
-app.set('view engine', 'pug');
-
-// --- Middlewares ---
-app.use('/public', express.static(process.cwd() + '/public'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// --- Sesión y Passport ---
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: true,
-  saveUninitialized: true,
-  cookie: { secure: false }
-}));
-app.use(passport.initialize());
-app.use(passport.session());
-
-// --- FreeCodeCamp testing ---
-fccTesting(app);
-
-// -----------------------------------------------------------
-// 🔹 Conexión a base de datos
-// -----------------------------------------------------------
-myDB(async client => {
-  const myDataBase = await client.db('fcc').collection('users');
-
-  // Inserta usuario de prueba si la colección está vacía
-  const count = await myDataBase.countDocuments();
-  if (count === 0) {
-    await myDataBase.insertOne({
-      username: 'alice',
-      password: bcrypt.hashSync('12345', 12)
-    });
-    console.log('Usuario de prueba insertado');
-  }
-
-  // --- Auth y Routes ---
-  const auth = require('./auth.js');
-  auth(passport, myDataBase);
-
-  const routes = require('./routes.js');
-  routes(app, myDataBase);
-
-  console.log('✅ Conexión a MongoDB y Passport listos');
-
-}).catch(e => {
-  console.error('❌ Error conectando a la base de datos:', e);
-  app.route('/').get((req, res) => {
-    res.render('index', { title: e, message: 'Unable to connect to database' });
-  });
-});
-
-// --- Escucha del servidor ---
-const PORT = process.env.PO

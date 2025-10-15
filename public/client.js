@@ -1,38 +1,30 @@
-/*global io*/
 $(document).ready(function () {
-  // Conexión a Socket.IO
+  /*global io*/
   let socket = io();
 
-  const $form = $('form');
-  const $input = $('#m');
-  const $messages = $('#messages');
-  const $numUsers = $('#num-users');
+  socket.on('user', data => {
+  $('#num-users').text(data.currentUsers + ' users online');
+  let message =
+    data.name +
+    (data.connected ? ' has joined the chat.' : ' has left the chat.');
+  $('#messages').append($('<li>').html('<b>' + message + '</b>'));
+});
 
-  // ----------------------
-  // Enviar mensaje
-  // ----------------------
-  $form.submit(function (e) {
-    e.preventDefault();
-    const messageToSend = $input.val();
-    if (messageToSend) {
-      socket.emit('chat message', messageToSend); // enviar al servidor
-      $input.val(''); // limpiar input
-    }
-    return false;
-  });
+  socket.on('chat message', (data) => {
+    console.log('socket.on 1');
+    $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
+  });  
 
-  // ----------------------
-  // Recibir mensaje
-  // ----------------------
-  socket.on('chat message', function (msg) {
-    $messages.append($('<li>').text(msg));
-    $messages.scrollTop($messages[0].scrollHeight); // scroll al final
-  });
+  // Form submittion with new message in field with id 'm'
+  $('form').submit(function () {
+    var messageToSend = $('#m').val();
 
-  // ----------------------
-  // Mostrar número de usuarios conectados
-  // ----------------------
-  socket.on('user count', function (count) {
-    $numUsers.text(`Usuarios conectados: ${count}`);
+    // Send message to server here?
+    socket.emit('chat message', messageToSend);
+    $('#m').val('');
+    return false; // prevent form submit from refreshing page
   });
 });
+
+
+

@@ -10,10 +10,24 @@ const fccTesting = require('./freeCodeCamp/fcctesting.js');
 
 const app = express();
 
+// --- CORS header ---
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  next();
+});
+
+// --- Views ---
+app.set('views', path.join(__dirname, 'views/pug'));
+app.set('view engine', 'pug');
+
 // --- Middlewares ---
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// --- Sesión y Passport ---
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: true,
@@ -22,26 +36,32 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+
+// --- FreeCodeCamp testing ---
 fccTesting(app);
 
-// --- Views ---
-app.set('views', path.join(__dirname, 'views/pug'));
-app.set('view engine', 'pug');
-
-// --- Database connection ---
+// -----------------------------------------------------------
+// 🔹 Conexión a base de datos
+// -----------------------------------------------------------
 myDB(async client => {
   const myDataBase = await client.db('fcc').collection('users');
 
-  // Usuario de prueba
+  // Inserta usuario de prueba si la colección está vacía
   const count = await myDataBase.countDocuments();
   if (count === 0) {
-    await myDataBase.insertOne({ username: 'alice', password: bcrypt.hashSync('12345', 12) });
+    await myDataBase.insertOne({
+      username: 'alice',
+      password: bcrypt.hashSync('12345', 12)
+    });
     console.log('Usuario de prueba insertado');
   }
 
-  // --- Auth & Routes ---
-  require('./auth.js')(passport, myDataBase);
-  require('./routes.js')(app, myDataBase);
+  // --- Auth y Routes ---
+  const auth = require('./auth.js');
+  auth(passport, myDataBase);
+
+  const routes = require('./routes.js');
+  routes(app, myDataBase);
 
   console.log('✅ Conexión a MongoDB y Passport listos');
 
@@ -52,5 +72,5 @@ myDB(async client => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('🌐 Servidor escuchando en puerto ' + PORT));
+// --- Escucha del servidor ---
+const PORT = process.env.PO

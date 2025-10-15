@@ -4,12 +4,13 @@ const passport = require('passport');
 
 module.exports = function(app, myDataBase) {
 
+  // Middleware para proteger rutas
   function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
     res.redirect('/');
   }
 
-  // --- HOME ---
+  // --- RUTA PRINCIPAL ---
   app.route('/').get((req, res) => {
     res.render('index', {
       title: 'Connected to Database',
@@ -26,8 +27,12 @@ module.exports = function(app, myDataBase) {
       myDataBase.findOne({ username: req.body.username }, (err, user) => {
         if (err) return next(err);
         if (user) return res.redirect('/');
+
         const hash = bcrypt.hashSync(req.body.password, 12);
-        myDataBase.insertOne({ username: req.body.username, password: hash }, (err, doc) => {
+        myDataBase.insertOne({
+          username: req.body.username,
+          password: hash
+        }, (err, doc) => {
           if (err) return res.redirect('/');
           next(null, doc.ops[0]);
         });
@@ -42,7 +47,9 @@ module.exports = function(app, myDataBase) {
   // --- LOGIN ---
   app.route('/login').post(
     passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => res.redirect('/profile')
+    (req, res) => {
+      res.redirect('/profile');
+    }
   );
 
   // --- PROFILE ---
@@ -58,12 +65,13 @@ module.exports = function(app, myDataBase) {
     });
   });
 
-  // --- GitHub Authentication ---
+  // --- GitHub Auth ---
   app.route('/auth/github').get(passport.authenticate('github'));
+
   app.route('/auth/github/callback')
-    .get(passport.authenticate('github', { failureRedirect: '/' }),
-      (req, res) => res.redirect('/profile')
-    );
+    .get(passport.authenticate('github', { failureRedirect: '/' }), (req, res) => {
+      res.redirect('/profile');
+    });
 
   // --- 404 ---
   app.use((req, res) => {
@@ -71,3 +79,4 @@ module.exports = function(app, myDataBase) {
   });
 
 };
+

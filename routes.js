@@ -2,8 +2,10 @@
 const passport = require('passport');
 const bcrypt = require('bcrypt');
 
-module.exports = function(app, myDataBase) {
-
+module.exports = function (app, myDataBase) {
+  // ----------------------
+  // Middleware de autenticación
+  // ----------------------
   function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
     res.redirect('/');
@@ -26,8 +28,12 @@ module.exports = function(app, myDataBase) {
   // ----------------------
   // LOGIN LOCAL
   // ----------------------
-  app.post('/login', passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => res.redirect('/profile')
+  app.post(
+    '/login',
+    passport.authenticate('local', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/profile');
+    }
   );
 
   // ----------------------
@@ -38,13 +44,16 @@ module.exports = function(app, myDataBase) {
     myDataBase.findOne({ username: req.body.username }, (err, user) => {
       if (err) return next(err);
       if (user) return res.redirect('/');
-      myDataBase.insertOne({ username: req.body.username, password: hash }, (err, doc) => {
-        if (err) return next(err);
-        req.login(doc.ops[0], err => {
+      myDataBase.insertOne(
+        { username: req.body.username, password: hash },
+        (err, doc) => {
           if (err) return next(err);
-          res.redirect('/profile');
-        });
-      });
+          req.login(doc.ops[0], (err) => {
+            if (err) return next(err);
+            res.redirect('/profile');
+          });
+        }
+      );
     });
   });
 
@@ -56,7 +65,7 @@ module.exports = function(app, myDataBase) {
   });
 
   // ----------------------
-  // CHAT (nuevo)
+  // CHAT (Protegido)
   // ----------------------
   app.get('/chat', ensureAuthenticated, (req, res) => {
     res.render('pug/chat', { user: req.user });
@@ -66,20 +75,21 @@ module.exports = function(app, myDataBase) {
   // LOGOUT
   // ----------------------
   app.get('/logout', (req, res, next) => {
-    req.logout(err => {
+    req.logout((err) => {
       if (err) return next(err);
       res.redirect('/');
     });
   });
 
   // ----------------------
-  // GITHUB OAUTH
+  // GITHUB AUTH
   // ----------------------
   app.get('/auth/github', passport.authenticate('github'));
-  app.get('/auth/github/callback',
+
+  app.get(
+    '/auth/github/callback',
     passport.authenticate('github', { failureRedirect: '/' }),
     (req, res) => {
-      // Guardar user_id en session y redirigir a chat
       req.session.user_id = req.user.id;
       res.redirect('/chat');
     }
@@ -91,5 +101,4 @@ module.exports = function(app, myDataBase) {
   app.use((req, res) => {
     res.status(404).type('text').send('Not Found');
   });
-
 };

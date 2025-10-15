@@ -1,21 +1,18 @@
-/*global io*/
+/* global io */
 'use strict';
 
-// Conectar lo antes posible
+// Conexión inmediata con el servidor
 const socket = io();
 
-// debug: loguear cuando se conecte
 socket.on('connect', () => {
-  console.log('Socket connected, id:', socket.id);
+  console.log('Connected to server, id:', socket.id);
 });
 
 $(document).ready(function () {
   // Mostrar número de usuarios conectados
-  socket.on('user', data => {
+  socket.on('user', (data) => {
     $('#num-users').text(data.currentUsers + ' users online');
-    let message =
-      data.name +
-      (data.connected ? ' has joined the chat.' : ' has left the chat.');
+    let message = data.name + (data.connected ? ' joined.' : ' left.');
     $('#messages').append($('<li>').html('<b>' + message + '</b>'));
   });
 
@@ -24,17 +21,16 @@ $(document).ready(function () {
     $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
   });
 
-  // Enviar mensaje al servidor
-  $('form').submit(function () {
-    let messageToSend = $('#m').val();
+  // Enviar mensajes
+  $('form').submit(function (e) {
+    e.preventDefault();
+    const messageToSend = $('#m').val();
     if (messageToSend.trim() !== '') {
       socket.emit('chat message', messageToSend);
       $('#m').val('');
     }
-    return false; // prevenir refresco de página
   });
 });
-
 
 
 

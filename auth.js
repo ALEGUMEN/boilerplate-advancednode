@@ -1,13 +1,18 @@
 'use strict';
 const LocalStrategy = require('passport-local').Strategy;
-const GitHubStrategy = require('passport-github2').Strategy;
+const GitHubStrategy = require('passport-github').Strategy; // ✅ usar passport-github
 const bcrypt = require('bcrypt');
 const main = require('./connection');
 
 module.exports = function(passport) {
 
-  // Serialize / deserialize
-  passport.serializeUser((user, done) => done(null, user._id));
+  // ----------------------
+  // SERIALIZE / DESERIALIZE
+  // ----------------------
+  passport.serializeUser((user, done) => {
+    done(null, user._id);
+  });
+
   passport.deserializeUser((id, done) => {
     main(async (client) => {
       const db = client.db('fcc');
@@ -17,29 +22,39 @@ module.exports = function(passport) {
     }).catch(err => done(err, null));
   });
 
-  // Local strategy
+  // ----------------------
+  // LOCAL STRATEGY
+  // ----------------------
   passport.use(new LocalStrategy((username, password, done) => {
     main(async (client) => {
       const db = client.db('fcc');
       const myDataBase = db.collection('users');
-      const user = await myDataBase.findOne({ username });
+
+      const user = await myDataBase.findOne({ username: username });
       if (!user) return done(null, false);
       if (!bcrypt.compareSync(password, user.password)) return done(null, false);
+
       return done(null, user);
     }).catch(err => done(err));
   }));
 
-  // GitHub strategy
+  // ----------------------
+  // GITHUB STRATEGY
+  // ----------------------
   passport.use(new GitHubStrategy({
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.GITHUB_CALLBACK_URL || "http://localhost:3000/auth/github/callback"
     },
-    (accessToken, refreshToken, profile, done) => {
+    function(accessToken, refreshToken, profile, done) {
       main(async (client) => {
         const db = client.db('fcc');
         const myDataBase = db.collection('users');
+
+        // Buscar usuario por githubId
         let user = await myDataBase.findOne({ githubId: profile.id });
+
+        // Si no existe, crearlo
         if (!user) {
           const doc = await myDataBase.insertOne({
             githubId: profile.id,
@@ -47,9 +62,9 @@ module.exports = function(passport) {
           });
           user = doc.ops[0];
         }
-        done(null, user);
+
+        return done(null, user);
       }).catch(err => done(err));
     }
   ));
 };
-

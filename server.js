@@ -45,7 +45,7 @@ app.use(session({
   resave: true,
   saveUninitialized: true,
   cookie: { secure: false },
-  key: 'express.sid', // Set a key for session identifier
+  key: 'connect.sid', // Set a key for session identifier
   store: store
 }));
 app.use(passport.initialize());
@@ -76,7 +76,7 @@ function onAuthorizeFail(data, message, error, accept) {
 io.use(
   passportSocketIo.authorize({
     cookieParser: cookieParser,
-    key: 'express.sid', // Must match the key in app.use(session)
+    key: 'connect.sid', // Must match the key in app.use(session)
     secret: mySecret,   // Must match the secret in app.use(session)
     store: store,
     success: onAuthorizeSuccess,

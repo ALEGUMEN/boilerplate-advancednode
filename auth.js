@@ -6,10 +6,9 @@ const { ObjectId } = require('mongodb');
 
 module.exports = function(passport, myDataBase) {
 
-  // --- Local Strategy ---
+  // --- Estrategia Local ---
   passport.use(new LocalStrategy((username, password, done) => {
     myDataBase.findOne({ username: username }, (err, user) => {
-      console.log(`User ${username} attempted to log in.`);
       if (err) return done(err);
       if (!user) return done(null, false);
       if (!bcrypt.compareSync(password, user.password)) return done(null, false);
@@ -17,18 +16,17 @@ module.exports = function(passport, myDataBase) {
     });
   }));
 
-  // --- GitHub Strategy ---
+  // --- Estrategia GitHub ---
   passport.use(new GitHubStrategy({
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.GITHUB_CALLBACK_URL
     },
     function(accessToken, refreshToken, profile, done) {
-      // Buscamos si el usuario ya existe
       myDataBase.findOne({ githubId: profile.id }, (err, user) => {
         if (err) return done(err);
-        if (user) return done(null, user); // usuario existente
-        // Si no existe, lo insertamos
+        if (user) return done(null, user);
+        // Si no existe, insertamos
         myDataBase.insertOne({
           githubId: profile.id,
           username: profile.username
@@ -52,5 +50,4 @@ module.exports = function(passport, myDataBase) {
       return done(null, doc);
     });
   });
-
 };

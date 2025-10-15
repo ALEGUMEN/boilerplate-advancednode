@@ -10,7 +10,7 @@ const fccTesting = require('./freeCodeCamp/fcctesting.js');
 
 const app = express();
 
-// --- CORS header ---
+// --- CORS ---
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -37,23 +37,14 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- FreeCodeCamp testing ---
+// --- FreeCodeCamp Testing ---
 fccTesting(app);
 
-// -----------------------------------------------------------
-// 🔹 Conexión a base de datos
-// -----------------------------------------------------------
+// --- Conexión a DB ---
 myDB(async client => {
   const myDataBase = await client.db('fcc').collection('users');
 
-  // --- Llamar a auth y routes DESPUÉS de tener la BD ---
-  const auth = require('./auth.js');
-  auth(passport, myDataBase);
-
-  const routes = require('./routes.js');
-  routes(app, myDataBase, passport);
-
-  // --- Inserta usuario de prueba ---
+  // Insertar usuario de prueba si no hay
   const count = await myDataBase.countDocuments();
   if (count === 0) {
     await myDataBase.insertOne({
@@ -62,6 +53,10 @@ myDB(async client => {
     });
     console.log('Usuario de prueba insertado');
   }
+
+  // --- Passport y rutas ---
+  require('./auth.js')(passport, myDataBase);
+  require('./routes.js')(app, myDataBase, passport);
 
   console.log('✅ Conexión a MongoDB y Passport listos');
 
@@ -72,8 +67,6 @@ myDB(async client => {
   });
 });
 
-// --- Escucha del servidor ---
+// --- Servidor ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log('🌐 Servidor escuchando en puerto ' + PORT);
-});
+app.listen(PORT, () => console.log('🌐 Servidor escuchando en puerto ' + PORT));

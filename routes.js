@@ -1,46 +1,72 @@
+'use strict';
+const bcrypt = require('bcrypt');
 const passport = require('passport');
 
-module.exports = function (app, db) {
-  
-  // Middleware de Autenticación para proteger rutas
+module.exports = function(app, myDataBase) {
+
+  // Middleware para proteger rutas
   function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) {
-      return next();
-    }
+    if (req.isAuthenticated()) return next();
     res.redirect('/');
-  };
+  }
 
-  // 1. Ruta de inicio (Home Page)
-  app.route('/')
-    .get((req, res) => {
-      res.render(process.cwd() + '/views/pug/index', {title: 'Hello', message: 'Please login', showLogin: true, user: req.user});
+  // --- RUTA PRINCIPAL ---
+  app.route('/').get((req, res) => {
+    res.render('index', {
+      title: 'Connected to Database',
+      message: 'Please login',
+      showLogin: true,
+      showRegistration: true
     });
+  });
 
-  // 2. Ruta para iniciar la autenticación con GitHub
-  app.route('/auth/github')
-    .get(passport.authenticate('github'));
+  // --- REGISTER ---
+  app.route('/register').post(
+    (req, res, next) => {
+      myDataBase.findOne({ username: req.body.username }, (err, user) => {
+        if (err) return next(err);
+        if (user) return res.redirect('/');
 
-  // 3. Ruta de Callback de GitHub (Maneja la respuesta de GitHub)
-  app.route('/auth/github/callback')
-    .get(passport.authenticate('github', { failureRedirect: '/' }), (req, res) => {
-      // Éxito: Redirigir al perfil
-      res.redirect('/profile');
-    });
-
-  // 4. Ruta de Perfil (Protegida)
-  app.route('/profile')
-    .get(ensureAuthenticated, (req, res) => {
-      res.render(process.cwd() + '/views/pug/profile', {username: req.user.username});
-    });
-
-  // 5. Ruta de Logout
-  app.route('/logout')
-    .get((req, res) => {
-        req.logout((err) => { // Función req.logout() requiere un callback en Express 4.x/Passport 0.6.0+
-            if (err) {
-                return next(err);
-            }
-            res.redirect('/');
+        const hash = bcrypt.hashSync(req.body.password, 12);
+        myDataBase.insertOne({
+          username: req.body.username,
+          password: hash
+        }, (err, doc) => {
+          if (err) return res.redirect('/');
+          next(null, doc.ops[0]);
         });
+      });
+    },
+    passport.authenticate('local', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/profile');
+    }
+  );
+
+  // --- LOGIN ---
+  app.route('/login').post(
+    passport.authenticate('local', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/profile');
+    }
+  );
+
+  // --- PROFILE ---
+  app.route('/profile').get(ensureAuthenticated, (req, res) => {
+    res.render('profile', { username: req.user.username });
+  });
+
+  // --- LOGOUT ---
+  app.route('/logout').get((req, res, next) => {
+    req.logout(err => {
+      if (err) return next(err);
+      res.redirect('/');
     });
+  });
+
+  // --- 404 ---
+  app.use((req, res) => {
+    res.status(404).type('text').send('Not Found');
+  });
+
 };

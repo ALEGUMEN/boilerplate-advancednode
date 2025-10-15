@@ -1,72 +1,79 @@
 'use strict';
 const bcrypt = require('bcrypt');
-const passport = require('passport');
 
-module.exports = function(app, myDataBase) {
+module.exports = function (app, myDataBase, passport) {
 
-  // Middleware para proteger rutas
+  // Middleware para verificar si el usuario está autenticado
   function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) return next();
-    res.redirect('/');
+    if (req.isAuthenticated()) {
+      return next();
+    }
+    res.redirect('/login');
   }
 
-  // --- RUTA PRINCIPAL ---
-  app.route('/').get((req, res) => {
-    res.render('index', {
-      title: 'Connected to Database',
-      message: 'Please login',
-      showLogin: true,
-      showRegistration: true
+  // --- Página principal protegida ---
+  app.route('/')
+    .get(ensureAuthenticated, (req, res) => {
+      res.render('index', { title: 'Home', user: req.user });
     });
-  });
 
-  // --- REGISTER ---
-  app.route('/register').post(
-    (req, res, next) => {
-      myDataBase.findOne({ username: req.body.username }, (err, user) => {
-        if (err) return next(err);
-        if (user) return res.redirect('/');
+  // --- Página de login ---
+  app.route('/login')
+    .get((req, res) => {
+      res.render('login', { title: 'Login' });
+    })
+    .post(
+      passport.authenticate('local', { failureRedirect: '/login' }),
+      (req, res) => {
+        res.redirect('/');
+      }
+    );
 
-        const hash = bcrypt.hashSync(req.body.password, 12);
-        myDataBase.insertOne({
-          username: req.body.username,
-          password: hash
-        }, (err, doc) => {
-          if (err) return res.redirect('/');
-          next(null, doc.ops[0]);
+  // --- Registro de nuevos usuarios ---
+  app.route('/register')
+    .get((req, res) => {
+      res.render('register', { title: 'Registro' });
+    })
+    .post(async (req, res, next) => {
+      try {
+        const user = await myDataBase.findOne({ username: req.body.username });
+        if (user) {
+          console.log('El usuario ya existe.');
+          return res.redirect('/login');
+        }
+
+        const hash = await bcrypt.hash(req.body.password, 12);
+        const newUser = { username: req.body.username, password: hash };
+
+        const insertResult = await myDataBase.insertOne(newUser);
+        const insertedUser = insertResult.insertedId
+          ? await myDataBase.findOne({ _id: insertResult.insertedId })
+          : null;
+
+        if (!insertedUser) return res.redirect('/register');
+        req.login(insertedUser, (err) => {
+          if (err) return next(err);
+          return res.redirect('/');
         });
-      });
-    },
-    passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => {
-      res.redirect('/profile');
-    }
-  );
-
-  // --- LOGIN ---
-  app.route('/login').post(
-    passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => {
-      res.redirect('/profile');
-    }
-  );
-
-  // --- PROFILE ---
-  app.route('/profile').get(ensureAuthenticated, (req, res) => {
-    res.render('profile', { username: req.user.username });
-  });
-
-  // --- LOGOUT ---
-  app.route('/logout').get((req, res, next) => {
-    req.logout(err => {
-      if (err) return next(err);
-      res.redirect('/');
+      } catch (err) {
+        console.error('Error en registro:', err);
+        return next(err);
+      }
     });
-  });
 
-  // --- 404 ---
+  // --- Logout ---
+  app.route('/logout')
+    .get((req, res) => {
+      req.logout((err) => {
+        if (err) console.error('Error al cerrar sesión:', err);
+        res.redirect('/login');
+      });
+    });
+
+  // --- Ruta para manejar 404 ---
   app.use((req, res) => {
-    res.status(404).type('text').send('Not Found');
+    res.status(404)
+      .type('text')
+      .send('Página no encontrada');
   });
-
 };

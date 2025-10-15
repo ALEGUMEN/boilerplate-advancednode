@@ -7,6 +7,8 @@ const passport = require('passport');
 const bcrypt = require('bcrypt');
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
+const auth = require('./auth.js');
+auth(passport, myDataBase);
 
 const app = express();
 

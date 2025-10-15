@@ -1,105 +1,91 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const myDB = require('./connection');
-const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const session = require('express-session');
 const passport = require('passport');
-const mySecret = process.env['SESSION_SECRET'];
-const routes = require('./routes.js');
-const auth = require('./auth.js');
+const path = require('path');
+const fccTesting = require('./freeCodeCamp/fcctesting.js');
+const myDB = require('./connection');
+const http = require('http');
+const socketio = require('socket.io');
 
 const app = express();
 
-// Required setup for Socket.IO
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-
-app.set('view engine', 'pug');
-
-// Fixes ReferenceError: passportSocketIo is not defined
-const passportSocketIo = require('passport.socketio');
-const cookieParser = require('cookie-parser');
-const MongoStore = require('connect-mongo')(session);
-const URI = process.env.MONGO_URI;
-const store = new MongoStore({ url: URI });
-
-fccTesting(app); // For fCC testing purposes
-app.use('/public', express.static(process.cwd() + '/public'));
+// ----------------------
+// Middlewares
+// ----------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/public', express.static(path.join(process.cwd(), 'public')));
 
+// CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  next();
+});
+
+// View engine
+app.set('views', path.join(__dirname, 'views/pug'));
+app.set('view engine', 'pug');
+
+// Session + Passport
 app.use(session({
-  secret: mySecret,
+  secret: process.env.SESSION_SECRET || 'putanythinghere',
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false },
-  key: 'express.sid',
-  store: store,
+  cookie: { secure: false }
 }));
-
 app.use(passport.initialize());
 app.use(passport.session());
 
-io.use(
-  passportSocketIo.authorize({
-    cookieParser: cookieParser,
-    key: 'express.sid',
-    secret: process.env.SESSION_SECRET,
-    store: store,
-    success: onAuthorizeSuccess,
-    fail: onAuthorizeFail
-  })
-);
+// FCC Testing
+fccTesting(app);
 
+// ----------------------
+// HTTP + Socket.IO
+// ----------------------
+const server = http.createServer(app);
+const io = socketio(server);
+
+// ----------------------
+// Connect to MongoDB
+// ----------------------
 myDB(async (client) => {
-  const myDataBase = await client.db('database').collection('users');
+  const myDataBase = client.db('fcc').collection('users');
 
-  routes(app, myDataBase);
-  auth(app, myDataBase);
+  // Auth + Routes
+  require('./auth.js')(app, myDataBase);
+  require('./routes.js')(app, myDataBase);
 
-  // Connection listener as required by the challenge
+  // ----------------------
+  // Socket.IO connections
+  // ----------------------
   io.on('connection', socket => {
-    let currentUsers = 0;
     console.log('A user has connected');
-    ++currentUsers;
-    io.emit('user', {
-      name: socket.request.user.name,
-      currentUsers,
-      connected: true
-    });
-    socket.on('chat message', (message) =>{
-      io.emit('chat message', { name: socket.request.user.name, message });
+
+    // Emitir número de usuarios conectados
+    io.emit('user count', io.engine.clientsCount);
+
+    // Escuchar mensajes del cliente
+    socket.on('chat message', msg => {
+      io.emit('chat message', msg);
     });
 
+    // Manejar desconexión
     socket.on('disconnect', () => {
-      console.log('A user has disconnected');
-      --currentUsers;
-      io.emit('user', {
-        name: socket.request.user.name,
-        currentUsers,
-        connected: false
-      });
-    }); 
+      io.emit('user count', io.engine.clientsCount);
+    });
   });
-}).catch((e) => {
-  app.route('/').get((req, res) => {
-    res.render('pug', { title: e, message: 'Unable to login' });
-  });
+
+}).catch(err => {
+  console.error(err);
+  app.get('/', (req, res) => res.render('pug', { title: 'Error', message: 'Unable to connect to DB' }));
 });
 
-function onAuthorizeSuccess(data, accept) {
-  console.log('successful connection to socket.io');
-  accept(null, true);
-}
-
-function onAuthorizeFail(data, message, error, accept) {
-  if (error) throw new Error(message);
-  console.log('failed connection to socket.io:', message);
-  accept(null, false);
-}
-
-// Listen from the http server, not the express app
-http.listen(process.env.PORT || 3000, () => {
-  console.log('Listening on port ' + process.env.PORT);
-});
+// ----------------------
+// Start server
+// ----------------------
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`Listening on port ${PORT}`));

@@ -1,3 +1,4 @@
+doctype html
 html
   head
     title FCC Advanced Node and Express
@@ -8,41 +9,40 @@ html
     link(rel='stylesheet', href='/public/style.css')
   body
     h1.border.center FCC Advanced Node and Express
-    h2.center#pug-success-message
-    | Looks like this page is being rendered from Pug into HTML!
-    | #{title}
-    p#pug-variable=message
-    
-    
-    
+    h2.center#pug-success-message Looks like this page is being rendered from Pug into HTML!
+    p#pug-variable= message
+
+    // --- LOGIN FORM ---
     if showLogin
       hr
       h2.center Login Form
       form(action='/login', method='post').center
         div
-          label Username:
-          input(type='text', name='username')
+          label(for='username') Username:
+          input(type='text', name='username', required)
         div
-          label Password:
-          input(type='password', name='password')
+          label(for='password') Password:
+          input(type='password', name='password', required)
         div
           input(type='submit', value='Log In')
-          
+
+    // --- REGISTRATION FORM ---
     if showRegistration
       hr
       h2.center Registration Form
       form(action='/register', method='post').center
         div
-          label Username:
-          input(type='text', name='username')
+          label(for='username') Username:
+          input(type='text', name='username', required)
         div
-          label Password:
-          input(type='password', name='password')
+          label(for='password') Password:
+          input(type='password', name='password', required)
         div
           input(type='submit', value='Register')
 
+    // --- SOCIAL AUTH (GitHub) ---
     if showSocialAuth
       hr
       h2.center Social Login
       .login.center
-        a(href='/auth/github').text Login with Github!
+        a.button(href='/auth/github') Login with GitHub

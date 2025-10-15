@@ -3,6 +3,7 @@ require('dotenv').config();
 const LocalStrategy = require('passport-local');
 const GitHubStrategy = require('passport-github').Strategy;
 const bcrypt = require('bcrypt');
+const { ObjectId } = require('mongodb');
 
 module.exports = function(passport, myDataBase) {
 
@@ -16,29 +17,40 @@ module.exports = function(passport, myDataBase) {
     });
   }));
 
-  // --- GitHub Strategy (para FCC) ---
+  // --- GitHub Strategy ---
   passport.use(new GitHubStrategy({
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.GITHUB_CALLBACK_URL
     },
     function(accessToken, refreshToken, profile, cb) {
-      // FCC solo valida que exista la estrategia
-      console.log('GitHub profile:', profile.username);
-      return cb(null, profile); 
+      // Buscamos usuario por GitHub ID
+      myDataBase.findOne({ githubId: profile.id }, (err, user) => {
+        if (err) return cb(err);
+        if (user) return cb(null, user); // Usuario existente
+        // Si no existe, creamos uno nuevo
+        myDataBase.insertOne({
+          githubId: profile.id,
+          username: profile.username || 'unknown'
+        }, (err, doc) => {
+          if (err) return cb(err);
+          return cb(null, doc.ops[0]);
+        });
+      });
     }
   ));
 
   // --- SERIALIZACIÓN ---
   passport.serializeUser((user, done) => {
-    done(null, user.id || user._json.id);
+    done(null, user._id);
   });
 
   // --- DESERIALIZACIÓN ---
   passport.deserializeUser((id, done) => {
-    myDataBase.findOne({ 'id': id }, (err, doc) => {
+    myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
       if (err) return done(err, null);
-      return done(null, doc || { username: 'GitHub User', id });
+      return done(null, doc);
     });
   });
+
 };

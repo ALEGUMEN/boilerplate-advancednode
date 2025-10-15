@@ -1,36 +1,33 @@
-/* global io */
-'use strict';
-
-// Conexión inmediata con el servidor
-const socket = io();
-
-socket.on('connect', () => {
-  console.log('Connected to server, id:', socket.id);
-});
-
+// This file's full path is /public/client.js
 $(document).ready(function () {
-  // Mostrar número de usuarios conectados
-  socket.on('user', (data) => {
-    $('#num-users').text(data.currentUsers + ' users online');
-    let message = data.name + (data.connected ? ' joined.' : ' left.');
-    $('#messages').append($('<li>').html('<b>' + message + '</b>'));
-  });
+  /*global io*/
+  let socket = io();
 
-  // Mostrar mensajes de chat
+  socket.on('user', data => {
+  $('#num-users').text(data.currentUsers + ' users online');
+  let message =
+    data.name +
+    (data.connected ? ' has joined the chat.' : ' has left the chat.');
+  $('#messages').append($('<li>').html('<b>' + message + '</b>'));
+});
+
   socket.on('chat message', (data) => {
+    console.log('socket.on 1');
     $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
-  });
+  });  
 
-  // Enviar mensajes
-  $('form').submit(function (e) {
-    e.preventDefault();
-    const messageToSend = $('#m').val();
-    if (messageToSend.trim() !== '') {
-      socket.emit('chat message', messageToSend);
-      $('#m').val('');
-    }
+  // Form submittion with new message in field with id 'm'
+  $('form').submit(function () {
+    var messageToSend = $('#m').val();
+
+    // Send message to server here?
+    socket.emit('chat message', messageToSend);
+    $('#m').val('');
+    return false; // prevent form submit from refreshing page
   });
 });
+
+
 
 
 

@@ -1,5 +1,5 @@
+/*global io*/
 $(document).ready(function () {
-  /*global io*/
   let socket = io();
 
   // Mostrar número de usuarios conectados
@@ -14,7 +14,7 @@ $(document).ready(function () {
   // Mostrar mensajes de chat
   socket.on('chat message', (data) => {
     $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
-  });  
+  });
 
   // Enviar mensaje al servidor
   $('form').submit(function () {
@@ -23,7 +23,7 @@ $(document).ready(function () {
       socket.emit('chat message', messageToSend);
       $('#m').val('');
     }
-    return false; // prevenir refresco de página
+    return false; 
   });
 });
 

@@ -1,6 +1,7 @@
 'use strict';
+require('dotenv').config(); // ⚠️ Importante para usar las variables de entorno
 const LocalStrategy = require('passport-local');
-const GitHubStrategy = require('passport-github');
+const GitHubStrategy = require('passport-github').Strategy;
 const bcrypt = require('bcrypt');
 const { ObjectId } = require('mongodb');
 
@@ -22,32 +23,35 @@ module.exports = function(passport, myDataBase) {
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.GITHUB_CALLBACK_URL
     },
-    function(accessToken, refreshToken, profile, done) {
+    function(accessToken, refreshToken, profile, cb) {
+      console.log(profile); // 🔹 Esto te permite ver tu perfil en la consola al autenticarte
+      // ⚡ Aquí es donde insertas o buscas el usuario en la base de datos
       myDataBase.findOne({ githubId: profile.id }, (err, user) => {
-        if (err) return done(err);
-        if (user) return done(null, user);
-        // Si no existe, insertamos
+        if (err) return cb(err);
+        if (user) return cb(null, user); // Usuario existente
+        // Usuario nuevo: insertamos en la BD
         myDataBase.insertOne({
           githubId: profile.id,
           username: profile.username
         }, (err, doc) => {
-          if (err) return done(err);
-          return done(null, doc.ops[0]);
+          if (err) return cb(err);
+          return cb(null, doc.ops[0]);
         });
       });
     }
   ));
 
-  // SERIALIZACIÓN
+  // --- SERIALIZACIÓN ---
   passport.serializeUser((user, done) => {
     done(null, user._id);
   });
 
-  // DESERIALIZACIÓN
+  // --- DESERIALIZACIÓN ---
   passport.deserializeUser((id, done) => {
     myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
       if (err) return done(err, null);
       return done(null, doc);
     });
   });
+
 };

@@ -1,53 +1,90 @@
-const { ObjectId } = require('mongodb');
-const GitHubStrategy = require('passport-github').Strategy;
+'use strict';
+const bcrypt = require('bcrypt');
+const main = require('./connection');
 
-module.exports = function (passport, usersCollection) {
-  // Serialización del usuario
-  passport.serializeUser((user, done) => {
-    done(null, user._id);
+module.exports = function(app, passport) {
+
+  function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) return next();
+    res.redirect('/');
+  }
+
+  // ----------------------
+  // Home
+  // ----------------------
+  app.get('/', (req, res) => {
+    res.render('index', {
+      title: 'Connected to Database',
+      message: 'Please login',
+      showLogin: true,
+      showRegistration: true,
+      showSocialAuth: true,
+      user: req.user,
+    });
   });
 
-  passport.deserializeUser(async (id, done) => {
-    try {
-      const user = await usersCollection.findOne({ _id: new ObjectId(id) });
-      done(null, user);
-    } catch (err) {
-      console.error('Error deserializing user:', err);
-      done(err, null);
+  // ----------------------
+  // Login local
+  // ----------------------
+  app.post('/login',
+    passport.authenticate('local', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/profile');
     }
+  );
+
+  // ----------------------
+  // Register local
+  // ----------------------
+  app.post('/register', (req, res, next) => {
+    main(async (client) => {
+      const db = client.db('fcc');
+      const myDataBase = db.collection('users');
+
+      const user = await myDataBase.findOne({ username: req.body.username });
+      if (user) return res.redirect('/');
+
+      const hash = bcrypt.hashSync(req.body.password, 12);
+      const doc = await myDataBase.insertOne({
+        username: req.body.username,
+        password: hash
+      });
+
+      // Login tras registrar
+      req.login(doc.ops[0], (err) => {
+        if (err) return next(err);
+        res.redirect('/profile');
+      });
+
+    }).catch(err => next(err));
   });
 
-  // ✅ Estrategia de GitHub
-  passport.use(
-    new GitHubStrategy(
-      {
-        clientID: process.env.GITHUB_CLIENT_ID,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        callbackURL: process.env.GITHUB_CALLBACK_URL || 'https://boilerplate-advancednode.yourusername.repl.co/auth/github/callback'
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const user = await usersCollection.findOneAndUpdate(
-            { id: profile.id },
-            {
-              $setOnInsert: {
-                id: profile.id,
-                username: profile.username,
-                name: profile.displayName || 'Anonymous',
-                photo: profile.photos?.[0]?.value || '',
-                email: profile.emails?.[0]?.value || '',
-                provider: profile.provider || 'github',
-                created_on: new Date()
-              }
-            },
-            { upsert: true, returnDocument: 'after' }
-          );
-          return done(null, user.value);
-        } catch (err) {
-          console.error('Error with GitHub Strategy:', err);
-          return done(err, null);
-        }
-      }
-    )
+  // ----------------------
+  // Profile
+  // ----------------------
+  app.get('/profile', ensureAuthenticated, (req, res) => {
+    res.render('profile', { username: req.user.username });
+  });
+
+  // ----------------------
+  // GitHub OAuth
+  // ----------------------
+  app.get('/auth/github', passport.authenticate('github'));
+
+  app.get('/auth/github/callback',
+    passport.authenticate('github', { failureRedirect: '/' }),
+    (req, res) => {
+      res.redirect('/profile');
+    }
   );
+
+  // ----------------------
+  // Logout
+  // ----------------------
+  app.get('/logout', (req, res, next) => {
+    req.logout(err => {
+      if (err) return next(err);
+      res.redirect('/');
+    });
+  });
 };

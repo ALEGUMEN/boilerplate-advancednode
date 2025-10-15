@@ -1,7 +1,15 @@
 /*global io*/
-$(document).ready(function () {
-  let socket = io();
+'use strict';
 
+// Conectar lo antes posible
+const socket = io();
+
+// debug: loguear cuando se conecte
+socket.on('connect', () => {
+  console.log('Socket connected, id:', socket.id);
+});
+
+$(document).ready(function () {
   // Mostrar número de usuarios conectados
   socket.on('user', data => {
     $('#num-users').text(data.currentUsers + ' users online');
@@ -23,9 +31,10 @@ $(document).ready(function () {
       socket.emit('chat message', messageToSend);
       $('#m').val('');
     }
-    return false; 
+    return false; // prevenir refresco de página
   });
 });
+
 
 
 

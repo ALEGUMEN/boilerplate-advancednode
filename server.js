@@ -45,7 +45,7 @@ app.use(session({
   resave: true,
   saveUninitialized: true,
   cookie: { secure: false },
-  key: 'connect.sid', // Set a key for session identifier
+  key: 'express.sid', // Set a key for session identifier
   store: store
 }));
 app.use(passport.initialize());
@@ -76,7 +76,7 @@ function onAuthorizeFail(data, message, error, accept) {
 io.use(
   passportSocketIo.authorize({
     cookieParser: cookieParser,
-    key: 'connect.sid', // Must match the key in app.use(session)
+    key: 'express.sid', // Must match the key in app.use(session)
     secret: mySecret,   // Must match the secret in app.use(session)
     store: store,
     success: onAuthorizeSuccess,
@@ -98,7 +98,7 @@ myDB(async (client) => {
   // ----------------------
   // Socket.IO connections
   // ----------------------
-  let currentUsers = 0; // Initialize user count outside the connection handler
+  let currentUsers = io.engine.clientsCount; // Initialize user count outside the connection handler
   
   io.on('connection', socket => {
     console.log('A user has connected');

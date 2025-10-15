@@ -6,8 +6,9 @@ const passport = require('passport');
 const path = require('path');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const myDB = require('./connection');
-const http = require('http');
-const socketio = require('socket.io');
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+
 
 // ADDED: Dependencies for Socket.IO Authorization
 const passportSocketIo = require('passport.socketio');

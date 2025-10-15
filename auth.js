@@ -1,90 +1,55 @@
 'use strict';
+const LocalStrategy = require('passport-local').Strategy;
+const GitHubStrategy = require('passport-github2').Strategy;
 const bcrypt = require('bcrypt');
 const main = require('./connection');
 
-module.exports = function(app, passport) {
+module.exports = function(passport) {
 
-  function ensureAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) return next();
-    res.redirect('/');
-  }
-
-  // ----------------------
-  // Home
-  // ----------------------
-  app.get('/', (req, res) => {
-    res.render('index', {
-      title: 'Connected to Database',
-      message: 'Please login',
-      showLogin: true,
-      showRegistration: true,
-      showSocialAuth: true,
-      user: req.user,
-    });
-  });
-
-  // ----------------------
-  // Login local
-  // ----------------------
-  app.post('/login',
-    passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => {
-      res.redirect('/profile');
-    }
-  );
-
-  // ----------------------
-  // Register local
-  // ----------------------
-  app.post('/register', (req, res, next) => {
+  // Serialize / deserialize
+  passport.serializeUser((user, done) => done(null, user._id));
+  passport.deserializeUser((id, done) => {
     main(async (client) => {
       const db = client.db('fcc');
       const myDataBase = db.collection('users');
-
-      const user = await myDataBase.findOne({ username: req.body.username });
-      if (user) return res.redirect('/');
-
-      const hash = bcrypt.hashSync(req.body.password, 12);
-      const doc = await myDataBase.insertOne({
-        username: req.body.username,
-        password: hash
-      });
-
-      // Login tras registrar
-      req.login(doc.ops[0], (err) => {
-        if (err) return next(err);
-        res.redirect('/profile');
-      });
-
-    }).catch(err => next(err));
+      const user = await myDataBase.findOne({ _id: id });
+      done(null, user);
+    }).catch(err => done(err, null));
   });
 
-  // ----------------------
-  // Profile
-  // ----------------------
-  app.get('/profile', ensureAuthenticated, (req, res) => {
-    res.render('profile', { username: req.user.username });
-  });
+  // Local strategy
+  passport.use(new LocalStrategy((username, password, done) => {
+    main(async (client) => {
+      const db = client.db('fcc');
+      const myDataBase = db.collection('users');
+      const user = await myDataBase.findOne({ username });
+      if (!user) return done(null, false);
+      if (!bcrypt.compareSync(password, user.password)) return done(null, false);
+      return done(null, user);
+    }).catch(err => done(err));
+  }));
 
-  // ----------------------
-  // GitHub OAuth
-  // ----------------------
-  app.get('/auth/github', passport.authenticate('github'));
-
-  app.get('/auth/github/callback',
-    passport.authenticate('github', { failureRedirect: '/' }),
-    (req, res) => {
-      res.redirect('/profile');
+  // GitHub strategy
+  passport.use(new GitHubStrategy({
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: process.env.GITHUB_CALLBACK_URL || "http://localhost:3000/auth/github/callback"
+    },
+    (accessToken, refreshToken, profile, done) => {
+      main(async (client) => {
+        const db = client.db('fcc');
+        const myDataBase = db.collection('users');
+        let user = await myDataBase.findOne({ githubId: profile.id });
+        if (!user) {
+          const doc = await myDataBase.insertOne({
+            githubId: profile.id,
+            username: profile.username
+          });
+          user = doc.ops[0];
+        }
+        done(null, user);
+      }).catch(err => done(err));
     }
-  );
-
-  // ----------------------
-  // Logout
-  // ----------------------
-  app.get('/logout', (req, res, next) => {
-    req.logout(err => {
-      if (err) return next(err);
-      res.redirect('/');
-    });
-  });
+  ));
 };
+

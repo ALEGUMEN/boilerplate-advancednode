@@ -56,6 +56,13 @@ module.exports = function(app, myDataBase) {
   });
 
   // ----------------------
+  // CHAT (nuevo)
+  // ----------------------
+  app.get('/chat', ensureAuthenticated, (req, res) => {
+    res.render('pug/chat', { user: req.user });
+  });
+
+  // ----------------------
   // LOGOUT
   // ----------------------
   app.get('/logout', (req, res, next) => {
@@ -71,7 +78,11 @@ module.exports = function(app, myDataBase) {
   app.get('/auth/github', passport.authenticate('github'));
   app.get('/auth/github/callback',
     passport.authenticate('github', { failureRedirect: '/' }),
-    (req, res) => res.redirect('/profile')
+    (req, res) => {
+      // Guardar user_id en session y redirigir a chat
+      req.session.user_id = req.user.id;
+      res.redirect('/chat');
+    }
   );
 
   // ----------------------

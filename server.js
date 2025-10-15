@@ -6,6 +6,8 @@ const passport = require('passport');
 const path = require('path');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const myDB = require('./connection');
+const http = require('http');          // ✅ Node HTTP
+const socketio = require('socket.io'); // ✅ Socket.IO
 
 const app = express();
 
@@ -33,13 +35,19 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'putanythinghere',
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false } // true si usas HTTPS
+  cookie: { secure: false }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
 
 // FCC Testing
 fccTesting(app);
+
+// ----------------------
+// HTTP + Socket.IO
+// ----------------------
+const server = http.createServer(app);
+const io = socketio(server);
 
 // ----------------------
 // Connect to MongoDB
@@ -51,6 +59,13 @@ myDB(async (client) => {
   require('./auth.js')(app, myDataBase);
   require('./routes.js')(app, myDataBase);
 
+  // ----------------------
+  // Socket.IO connections
+  // ----------------------
+  io.on('connection', socket => {
+    console.log('A user has connected');
+  });
+
 }).catch(err => {
   console.error(err);
   app.get('/', (req, res) => res.render('pug', { title: 'Error', message: 'Unable to connect to DB' }));
@@ -60,4 +75,4 @@ myDB(async (client) => {
 // Start server
 // ----------------------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
+server.listen(PORT, () => console.log(`Listening on port ${PORT}`));

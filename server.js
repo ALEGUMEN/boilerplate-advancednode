@@ -1,29 +1,22 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const path = require('path');
+const myDB = require('./connection');
+const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const session = require('express-session');
 const passport = require('passport');
-const cors = require('cors');
-const fccTesting = require('./freeCodeCamp/fcctesting.js');
+const routes = require('./routes');
+const auth = require('./auth.js');
 
 const app = express();
-
-// CORS
-app.use(cors({
-  origin: '*', // o tu frontend específico
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
-  credentials: true
-}));
-
-// Views
-app.set('views', path.join(__dirname, 'views/pug'));
 app.set('view engine', 'pug');
 
-// Session + Passport
+fccTesting(app); // For fCC testing purposes
+app.use('/public', express.static(process.cwd() + '/public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET||'putanythinghere',
   resave: true,
   saveUninitialized: true,
   cookie: { secure: false }
@@ -32,26 +25,25 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// FCC Testing
-fccTesting(app);
+myDB(async (client) => {
+  const myDataBase = await client.db('database').collection('users');
 
-// Middleware global
-app.use('/public', express.static(path.join(process.cwd(), 'public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Auth strategies
-require('./auth.js')(passport);
-
-// Routes
-require('./routes.js')(app, passport);
-
-// 404
-app.use((req, res) => {
-  res.status(404).type('text').send('Not Found');
+  routes(app, myDataBase);
+  auth(app, myDataBase);
+}).catch((e) => {
+  app.route('/').get((req, res) => {
+    res.render('pug', { title: e, message: 'Unable to login' });
+  });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
+  app.route('/auth/github').get(passport.authenticate('github'));
+  app.route('/auth/github/callback').get(passport.authenticate('github', { failureRedirect: '/' }), (req, res) => {
+    res.redirect('/profile');
+  });
 
+
+
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Listening on port ' + process.env.PORT);
+});

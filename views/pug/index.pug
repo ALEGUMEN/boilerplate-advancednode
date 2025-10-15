@@ -1,45 +1,18 @@
+doctype html
 html
   head
-    title FCC Advanced Node and Express
-    meta(name='description', content='Home page')
-    meta(charset='utf-8')
-    meta(http-equiv='X-UA-Compatible', content='IE=edge')
-    meta(name='viewport', content='width=device-width, initial-scale=1')
-    link(rel='stylesheet', href='/public/style.css')
+    title= title
   body
-    h1.border.center FCC Advanced Node and Express
-    h2.center#pug-success-message
-    | #{title}
-    p#pug-variable=message
-
+    h1= message
     if showLogin
-      hr
-      h2.center Login Form
-      form(action='/login', method='post').center
-        div
-          label Username:
-          input(type='text', name='username')
-        div
-          label Password:
-          input(type='password', name='password')
-        div
-          input(type='submit', value='Log In')
-
+      form(action='/login', method='post')
+        input(type='text', name='username', placeholder='Username', required)
+        input(type='password', name='password', placeholder='Password', required)
+        button(type='submit') Login
     if showRegistration
-      hr
-      h2.center Registration Form
-      form(action='/register', method='post').center
-        div
-          label Username:
-          input(type='text', name='username')
-        div
-          label Password:
-          input(type='password', name='password')
-        div
-          input(type='submit', value='Register')
-
+      form(action='/register', method='post')
+        input(type='text', name='username', placeholder='Username', required)
+        input(type='password', name='password', placeholder='Password', required)
+        button(type='submit') Register
     if showSocialAuth
-      hr
-      h2.center Social Login
-      .login.center
-        a(href='/auth/github') Login with GitHub
+      a(href='/auth/github') Login with GitHub

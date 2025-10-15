@@ -1,11 +1,12 @@
 'use strict';
+const passport = require('passport');
 const LocalStrategy = require('passport-local');
+const GitHubStrategy = require('passport-github').Strategy;
 const bcrypt = require('bcrypt');
 const { ObjectId } = require('mongodb');
 
-module.exports = function(passport, myDataBase) {
-
-  // --- Local Strategy ---
+module.exports = function (app, myDataBase) {
+  // --- Estrategia Local ---
   passport.use(new LocalStrategy((username, password, done) => {
     myDataBase.findOne({ username: username }, (err, user) => {
       console.log(`User ${username} attempted to log in.`);
@@ -16,12 +17,12 @@ module.exports = function(passport, myDataBase) {
     });
   }));
 
-  // SERIALIZACIÓN
+  // --- Serialización ---
   passport.serializeUser((user, done) => {
     done(null, user._id);
   });
 
-  // DESERIALIZACIÓN
+  // --- Deserialización ---
   passport.deserializeUser((id, done) => {
     myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
       if (err) return done(err, null);
@@ -29,4 +30,18 @@ module.exports = function(passport, myDataBase) {
     });
   });
 
+  // --- Estrategia GitHub ---
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        callbackURL: process.env.GITHUB_CALLBACK_URL
+      },
+      (accessToken, refreshToken, profile, cb) => {
+        console.log(profile);
+        return cb(null, profile);
+      }
+    )
+  );
 };

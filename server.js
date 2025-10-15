@@ -31,49 +31,23 @@ app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: true,
-  saveUninitialized: true,
-  cookie: { secure: false } 
+  saveUninitialized: true
 }));
+
+// Inicialización de Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- FreeCodeCamp testing ---
-fccTesting(app);
-
-// -----------------------------------------------------------
-// 🔹 Conexión a base de datos
-// -----------------------------------------------------------
+// Conexión a Mongo y configuración de Passport
 myDB(async client => {
   const myDataBase = await client.db('fcc').collection('users');
 
-  // Inserta un usuario de prueba si la colección está vacía
-  const count = await myDataBase.countDocuments();
-  if (count === 0) {
-    await myDataBase.insertOne({
-      username: 'alice',
-      password: bcrypt.hashSync('12345', 12)
-    });
-    console.log('Usuario de prueba insertado');
-  }
-
-  // --- Llamar a auth y routes ---
-  const auth = require('./auth.js');
-  auth(passport, myDataBase);
-
-  const routes = require('./routes.js');
+  auth(app, myDataBase);
   routes(app, myDataBase);
 
-  console.log("✅ Conexión a MongoDB y Passport listos");
-
+  app.listen(PORT, () => {
+    console.log(`✅ Server listening on port ${PORT}`);
+  });
 }).catch(e => {
   console.error(e);
-  app.route('/').get((req, res) => {
-    res.render('index', { title: e, message: 'Unable to connect to database' });
-  });
-});
-
-// --- Escucha del servidor ---
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log('🌐 Servidor escuchando en puerto ' + PORT);
 });

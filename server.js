@@ -6,8 +6,8 @@ const passport = require('passport');
 const path = require('path');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const myDB = require('./connection');
-const http = require('http');          // ✅ Node HTTP
-const socketio = require('socket.io'); // ✅ Socket.IO
+const http = require('http');
+const socketio = require('socket.io');
 
 const app = express();
 
@@ -64,6 +64,19 @@ myDB(async (client) => {
   // ----------------------
   io.on('connection', socket => {
     console.log('A user has connected');
+
+    // Emitir número de usuarios conectados
+    io.emit('user count', io.engine.clientsCount);
+
+    // Escuchar mensajes del cliente
+    socket.on('chat message', msg => {
+      io.emit('chat message', msg);
+    });
+
+    // Manejar desconexión
+    socket.on('disconnect', () => {
+      io.emit('user count', io.engine.clientsCount);
+    });
   });
 
 }).catch(err => {

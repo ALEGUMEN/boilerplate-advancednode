@@ -4,11 +4,9 @@ const express = require('express');
 const path = require('path');                 
 const session = require('express-session');  
 const passport = require('passport');        
-const LocalStrategy = require('passport-local'); 
-const bcrypt = require('bcrypt'); // ✅ bcrypt agregado
+const bcrypt = require('bcrypt');
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
-const { ObjectId } = require('mongodb');
 
 const app = express();
 
@@ -42,16 +40,8 @@ app.use(passport.session());
 // --- FreeCodeCamp testing ---
 fccTesting(app);
 
-// ---------------------
-// Middleware para proteger rutas
-// ---------------------
-function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) return next();
-  res.redirect('/');
-}
-
 // -----------------------------------------------------------
-// 🔹 Conexión a base de datos + rutas + Passport
+// 🔹 Conexión a base de datos
 // -----------------------------------------------------------
 myDB(async client => {
   const myDataBase = await client.db('fcc').collection('users');
@@ -61,94 +51,17 @@ myDB(async client => {
   if (count === 0) {
     await myDataBase.insertOne({
       username: 'alice',
-      password: bcrypt.hashSync('12345', 12) // hash de contraseña
+      password: bcrypt.hashSync('12345', 12)
     });
     console.log('Usuario de prueba insertado');
   }
 
-  // --- Local Strategy ---
-  passport.use(new LocalStrategy((username, password, done) => {
-    myDataBase.findOne({ username: username }, (err, user) => {
-      console.log(`User ${username} attempted to log in.`);
-      if (err) return done(err);
-      if (!user) return done(null, false);
-      if (!bcrypt.compareSync(password, user.password)) return done(null, false); // comparar hash
-      return done(null, user);
-    });
-  }));
+  // --- Llamar a auth y routes ---
+  const auth = require('./auth.js');
+  auth(passport, myDataBase);
 
-  // SERIALIZACIÓN
-  passport.serializeUser((user, done) => {
-    done(null, user._id);
-  });
-
-  // DESERIALIZACIÓN
-  passport.deserializeUser((id, done) => {
-    myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
-      if (err) return done(err, null);
-      return done(null, doc);
-    });
-  });
-
-  // RUTA PRINCIPAL
-  app.route('/').get((req, res) => {
-    res.render('index', {
-      title: 'Connected to Database',
-      message: 'Please login',
-      showLogin: true,
-      showRegistration: true
-    });
-  });
-
-  // RUTA /register
-  app.route('/register').post(
-    (req, res, next) => {
-      myDataBase.findOne({ username: req.body.username }, (err, user) => {
-        if (err) return next(err);
-        if (user) return res.redirect('/');
-
-        // hash de la contraseña antes de insertar
-        const hash = bcrypt.hashSync(req.body.password, 12);
-        myDataBase.insertOne({
-          username: req.body.username,
-          password: hash
-        }, (err, doc) => {
-          if (err) return res.redirect('/');
-          next(null, doc.ops[0]);
-        });
-      });
-    },
-    passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => {
-      res.redirect('/profile');
-    }
-  );
-
-  // RUTA /login
-  app.route('/login').post(
-    passport.authenticate('local', { failureRedirect: '/' }),
-    (req, res) => {
-      res.redirect('/profile');
-    }
-  );
-
-  // RUTA /profile protegida
-  app.route('/profile').get(ensureAuthenticated, (req, res) => {
-    res.render('profile', { username: req.user.username });
-  });
-
-  // RUTA /logout
-  app.route('/logout').get((req, res, next) => {
-    req.logout(err => {
-      if (err) return next(err);
-      res.redirect('/');
-    });
-  });
-
-  // 404
-  app.use((req, res, next) => {
-    res.status(404).type('text').send('Not Found');
-  });
+  const routes = require('./routes.js');
+  routes(app, myDataBase);
 
   console.log("✅ Conexión a MongoDB y Passport listos");
 

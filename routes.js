@@ -18,10 +18,10 @@ module.exports = function (app, myDataBase) {
     res.render(process.cwd() + 'pug/profile', { username: req.user.username });
   });
   
-  // ADDED: New GET route for /chat
+  // ADDED: New GET route for /chat, renders 'chat.pug'
   app.route('/chat').get(ensureAuthenticated, (req, res) => {
     res.render('chat', { user: req.user }); 
-  });  
+  });  
 
   app.route('/logout').get((req, res) => {
       req.logout();
@@ -56,7 +56,7 @@ module.exports = function (app, myDataBase) {
   });
   app.route('/auth/github').get(passport.authenticate('github'));
   
-  // ALTERED: /auth/github/callback route
+  // ALTERED: /auth/github/callback route to set session and redirect to /chat
   app.route('/auth/github/callback').get(passport.authenticate('github', { failureRedirect: '/'}), (req, res) => {
     req.session.user_id = req.user.id; 
     res.redirect('/chat'); 

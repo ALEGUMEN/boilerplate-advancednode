@@ -9,6 +9,11 @@ const myDB = require('./connection');
 const http = require('http');
 const socketio = require('socket.io');
 
+// ADDED: Dependencies for Socket.IO Authorization
+const passportSocketIo = require('passport.socketio');
+const cookieParser = require('cookie-parser');
+const MongoStore = require('connect-mongo')(session); // Ensure you have connect-mongo installed
+
 const app = express();
 
 // ----------------------
@@ -18,7 +23,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/public', express.static(path.join(process.cwd(), 'public')));
 
-// CORS
+// CORS (You had this, but it's typically not needed for same-server socket.io)
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -27,15 +32,21 @@ app.use((req, res, next) => {
 });
 
 // View engine
-app.set('views', path.join(__dirname, 'views/pug'));
+app.set('views', path.join(__dirname, 'views')); // Adjusted path to just 'views' for flexibility
 app.set('view engine', 'pug');
 
 // Session + Passport
+const mySecret = process.env.SESSION_SECRET || 'putanythinghere';
+const URI = process.env.MONGO_URI;
+const store = new MongoStore({ url: URI }); // Define the store here
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'putanythinghere',
+  secret: mySecret,
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { secure: false },
+  key: 'express.sid', // Set a key for session identifier
+  store: store
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -48,6 +59,31 @@ fccTesting(app);
 // ----------------------
 const server = http.createServer(app);
 const io = socketio(server);
+
+// Define auth success/fail functions for passport.socketio
+function onAuthorizeSuccess(data, accept) {
+  console.log('successful connection to socket.io');
+  accept(null, true);
+}
+
+function onAuthorizeFail(data, message, error, accept) {
+  if (error) throw new Error(message);
+  console.log('failed connection to socket.io:', message);
+  accept(null, false);
+}
+
+// CRITICAL FIX: Socket.IO authorization middleware
+io.use(
+  passportSocketIo.authorize({
+    cookieParser: cookieParser,
+    key: 'express.sid', // Must match the key in app.use(session)
+    secret: mySecret,   // Must match the secret in app.use(session)
+    store: store,
+    success: onAuthorizeSuccess,
+    fail: onAuthorizeFail
+  })
+);
+
 
 // ----------------------
 // Connect to MongoDB
@@ -62,20 +98,35 @@ myDB(async (client) => {
   // ----------------------
   // Socket.IO connections
   // ----------------------
+  let currentUsers = 0; // Initialize user count outside the connection handler
+  
   io.on('connection', socket => {
     console.log('A user has connected');
-
-    // Emitir número de usuarios conectados
-    io.emit('user count', io.engine.clientsCount);
+    ++currentUsers;
+    
+    // Emit connection event using the user's name from the authenticated socket
+    io.emit('user', {
+      name: socket.request.user.name,
+      currentUsers,
+      connected: true
+    });
 
     // Escuchar mensajes del cliente
-    socket.on('chat message', msg => {
-      io.emit('chat message', msg);
+    socket.on('chat message', message => {
+      // Broadcast the message with the authenticated user's name
+      io.emit('chat message', { name: socket.request.user.name, message: message });
     });
 
     // Manejar desconexión
     socket.on('disconnect', () => {
-      io.emit('user count', io.engine.clientsCount);
+      console.log('A user has disconnected');
+      --currentUsers;
+      // Emit disconnection event
+      io.emit('user', {
+        name: socket.request.user.name,
+        currentUsers,
+        connected: false
+      });
     });
   });
 

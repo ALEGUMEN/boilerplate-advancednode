@@ -1,14 +1,12 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
-const path = require('path');                 
-const session = require('express-session');  
-const passport = require('passport');        
+const path = require('path');
+const session = require('express-session');
+const passport = require('passport');
 const bcrypt = require('bcrypt');
 const myDB = require('./connection');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
-const auth = require('./auth.js');
-auth(passport, myDataBase);
 
 const app = express();
 
@@ -34,7 +32,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: true,
   saveUninitialized: true,
-  cookie: { secure: false } 
+  cookie: { secure: false }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -48,7 +46,14 @@ fccTesting(app);
 myDB(async client => {
   const myDataBase = await client.db('fcc').collection('users');
 
-  // Inserta un usuario de prueba si la colección está vacía
+  // --- Llamar a auth y routes DESPUÉS de tener la BD ---
+  const auth = require('./auth.js');
+  auth(passport, myDataBase);
+
+  const routes = require('./routes.js');
+  routes(app, myDataBase, passport);
+
+  // --- Inserta usuario de prueba ---
   const count = await myDataBase.countDocuments();
   if (count === 0) {
     await myDataBase.insertOne({
@@ -58,17 +63,10 @@ myDB(async client => {
     console.log('Usuario de prueba insertado');
   }
 
-  // --- Llamar a auth y routes ---
-  const auth = require('./auth.js');
-  auth(passport, myDataBase);
-
-  const routes = require('./routes.js');
-  routes(app, myDataBase);
-
-  console.log("✅ Conexión a MongoDB y Passport listos");
+  console.log('✅ Conexión a MongoDB y Passport listos');
 
 }).catch(e => {
-  console.error(e);
+  console.error('❌ Error conectando a la base de datos:', e);
   app.route('/').get((req, res) => {
     res.render('index', { title: e, message: 'Unable to connect to database' });
   });

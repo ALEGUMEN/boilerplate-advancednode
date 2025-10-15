@@ -1,46 +1,52 @@
-'use strict';
-const passport = require('passport');
-const LocalStrategy = require('passport-local');
-const GitHubStrategy = require('passport-github').Strategy;
-const bcrypt = require('bcrypt');
 const { ObjectId } = require('mongodb');
+const GitHubStrategy = require('passport-github').Strategy;
 
-module.exports = function (app, myDataBase) {
-  // --- Estrategia Local ---
-  passport.use(new LocalStrategy((username, password, done) => {
-    myDataBase.findOne({ username: username }, (err, user) => {
-      console.log(`User ${username} attempted to log in.`);
-      if (err) return done(err);
-      if (!user) return done(null, false);
-      if (!bcrypt.compareSync(password, user.password)) return done(null, false);
-      return done(null, user);
-    });
-  }));
-
-  // --- Serialización ---
+module.exports = function (passport, usersCollection) {
+  // Serialización del usuario
   passport.serializeUser((user, done) => {
     done(null, user._id);
   });
 
-  // --- Deserialización ---
-  passport.deserializeUser((id, done) => {
-    myDataBase.findOne({ _id: new ObjectId(id) }, (err, doc) => {
-      if (err) return done(err, null);
-      return done(null, doc);
-    });
+  passport.deserializeUser(async (id, done) => {
+    try {
+      const user = await usersCollection.findOne({ _id: new ObjectId(id) });
+      done(null, user);
+    } catch (err) {
+      console.error('Error deserializing user:', err);
+      done(err, null);
+    }
   });
 
-  // --- Estrategia GitHub ---
+  // ✅ Estrategia de GitHub
   passport.use(
     new GitHubStrategy(
       {
         clientID: process.env.GITHUB_CLIENT_ID,
         clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        callbackURL: process.env.GITHUB_CALLBACK_URL
+        callbackURL: process.env.GITHUB_CALLBACK_URL || 'https://boilerplate-advancednode.yourusername.repl.co/auth/github/callback'
       },
-      (accessToken, refreshToken, profile, cb) => {
-        console.log(profile);
-        return cb(null, profile);
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const user = await usersCollection.findOneAndUpdate(
+            { id: profile.id },
+            {
+              $setOnInsert: {
+                id: profile.id,
+                username: profile.username,
+                name: profile.displayName || 'Anonymous',
+                photo: profile.photos?.[0]?.value || '',
+                email: profile.emails?.[0]?.value || '',
+                provider: profile.provider || 'github',
+                created_on: new Date()
+              }
+            },
+            { upsert: true, returnDocument: 'after' }
+          );
+          return done(null, user.value);
+        } catch (err) {
+          console.error('Error with GitHub Strategy:', err);
+          return done(err, null);
+        }
       }
     )
   );

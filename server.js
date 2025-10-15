@@ -109,12 +109,11 @@ myDB(async client => {
   });
 
   // RUTA /logout
-    app.route('/logout').get((req, res, next) => {
-    req.logout(err => {
-      if (err) return next(err);
-      res.redirect('/');
+    app.route('/logout')
+      .get((req, res) => {
+        req.logout();
+        res.redirect('/');
     });
-  });
 
   app.use((req, res, next) => {
   res.status(404)

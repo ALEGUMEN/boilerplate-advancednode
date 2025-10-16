@@ -30,9 +30,10 @@ module.exports = function (app, myDataBase) {
   });
 
   // ✅ Route for /chat, protected and passes user
-  app.route('/chat').get((req, res) => {
-    res.render('chat', { user: req.user || {} });
-  });
+  app.route('/chat').get(ensureAuthenticated, (req, res) => {
+  res.render('chat', { user: req.user });
+});
+
 
   // ✅ Logout (fixed for Passport >=0.6)
   app.route('/logout').get((req, res, next) => {

@@ -8,10 +8,15 @@ const GITHUB_CLIENT_ID = process.env['GITHUB_CLIENT_ID'];
 
 module.exports = function (app, myDataBase) {
   passport.serializeUser((user, done) => {
-    done(null, user._id);
+    // Si el usuario tiene _id (local), usa ese. Si tiene id (GitHub), usa ese.
+    done(null, user._id || user.id);
   });
   passport.deserializeUser((id, done) => {
-    myDataBase.findOne({ _id: new ObjectID(id) }, (err, doc) => {
+    // Intenta buscar por _id (local) y por id (GitHub)
+    myDataBase.findOne({ $or: [
+      { _id: ObjectID.isValid(id) ? new ObjectID(id) : undefined },
+      { id: id }
+    ] }, (err, doc) => {
       if (err) return console.error(err);
       done(null, doc);
     });

@@ -7,53 +7,43 @@ const path = require('path');
 const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const myDB = require('./connection');
 
-// ADDED: Dependencies for Socket.IO Authorization
+// --- Dependencias de Socket.IO y Sesiones ---
 const passportSocketIo = require('passport.socketio');
 const cookieParser = require('cookie-parser');
+// Nota: La versión de connect-mongo puede requerir cambios si Node o Mongoose son muy nuevos.
 const MongoStore = require('connect-mongo')(session); 
 
-const app = express(); // <-- APP DEFINED FIRST
+const app = express();
 
-// ----------------------
-// HTTP + Socket.IO (Correct instantiation for the challenge)
-// ----------------------
-const http = require('http').createServer(app); // Uses the app instance
-const io = require('socket.io')(http); // Binds socket.io to the http server
-// ----------------------
+// --- HTTP + Socket.IO: CORRECTO ---
+const http = require('http').createServer(app); 
+const io = require('socket.io')(http); 
 
-// ... (The rest of your middleware setup)
-
-// ----------------------
-// Middlewares
-// ----------------------
+// --- Configuración de Express ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/public', express.static(path.join(process.cwd(), 'public')));
-
-// CORS
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  next();
-});
-
-// View engine
 app.set('views', path.join(__dirname, 'views', 'pug'));
 app.set('view engine', 'pug');
 
-// Session + Passport
+// Middleware para confiar en el proxy de Render (CRUCIAL para HTTPS y sesiones)
+app.set('trust proxy', 1); // 1 = El proxy de Render
+
+// --- Sesión + Passport ---
 const mySecret = process.env.SESSION_SECRET || 'putanythinghere';
 const URI = process.env.MONGO_URI;
 const store = new MongoStore({ url: URI }); 
 
 app.use(session({
-  secret: mySecret,
-  resave: true,
-  saveUninitialized: true,
-  cookie: { secure: false },
-  key: 'express.sid', // Using express.sid as it was in your previous attempt
-  store: store
+    secret: mySecret,
+    resave: true,
+    saveUninitialized: true,
+    cookie: { 
+        secure: process.env.NODE_ENV === 'production' ? true : false, // Usar 'true' en Render
+        maxAge: 1000 * 60 * 60 * 24 // 24 horas
+    },
+    key: 'express.sid', 
+    store: store
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -61,80 +51,72 @@ app.use(passport.session());
 // FCC Testing
 fccTesting(app);
 
-// Define auth success/fail functions for passport.socketio
+// --- Middleware de Autorización de Socket.IO ---
 function onAuthorizeSuccess(data, accept) {
-  console.log('successful connection to socket.io');
-  accept(null, true);
+    console.log('successful connection to socket.io');
+    accept(null, true);
 }
 
 function onAuthorizeFail(data, message, error, accept) {
-  if (error) throw new Error(message);
-  console.log('failed connection to socket.io:', message);
-  accept(null, false);
+    if (error) throw new Error(message);
+    console.log('failed connection to socket.io:', message);
+    accept(null, false);
 }
 
-// Socket.IO authorization middleware
 io.use(
-  passportSocketIo.authorize({
-    cookieParser: cookieParser,
-    key: 'express.sid', 
-    secret: mySecret,   
-    store: store,
-    success: onAuthorizeSuccess,
-    fail: onAuthorizeFail
-  })
+    passportSocketIo.authorize({
+        cookieParser: cookieParser,
+        key: 'express.sid', 
+        secret: mySecret,   
+        store: store,
+        success: onAuthorizeSuccess,
+        fail: onAuthorizeFail
+    })
 );
 
-
-// ----------------------
-// Connect to MongoDB
-// ----------------------
+// --- Conexión a MongoDB ---
 myDB(async (client) => {
-  const myDataBase = client.db('fcc').collection('users');
+    const myDataBase = client.db('fcc').collection('users');
 
-  // Auth + Routes
-  require('./auth.js')(app, myDataBase);
-  require('./routes.js')(app, myDataBase);
+    // --- Auth + Rutas ---
+    require('./auth.js')(app, myDataBase);
+    require('./routes.js')(app, myDataBase);
 
-  // ----------------------
-  // Socket.IO connections
-  // ----------------------
-  // CRITICAL FIX: Initialize currentUsers inside the DB block to ensure persistence
-  let currentUsers = 0; 
+    // --- Conexiones de Socket.IO ---
+    let currentUsers = 0; 
 
-	io.on('connection', socket => {
-		console.log('A user has connected');
-		currentUsers++;
-		// Usar nombre genérico si no está autenticado
-		const name = (socket.request.user && socket.request.user.name) ? socket.request.user.name : 'Anonymous';
-		io.emit('user', {
-			name,
-			currentUsers,
-			connected: true
-		});
+    io.on('connection', socket => {
+        // Lógica de conexión y desconexión
+        currentUsers++;
+        const name = (socket.request.user && socket.request.user.name) ? socket.request.user.name : 'Anonymous';
+        
+        io.emit('user', {
+            name,
+            currentUsers,
+            connected: true
+        });
 
-		socket.on('chat message', message => {
-			io.emit('chat message', { name, message });
-		});
+        socket.on('chat message', message => {
+            io.emit('chat message', { name, message });
+        });
 
-		socket.on('disconnect', () => {
-			console.log('A user has disconnected');
-			currentUsers--;
-			io.emit('user', {
-				name,
-				currentUsers,
-				connected: false
-			});
-		});
-	});
+        socket.on('disconnect', () => {
+            console.log('A user has disconnected');
+            currentUsers--;
+            io.emit('user', {
+                name,
+                currentUsers,
+                connected: false
+            });
+        });
+    });
 
 }).catch(err => {
-  console.error(err);
-  app.get('/', (req, res) => res.render('pug', { title: 'Error', message: 'Unable to connect to DB' }));
+    console.error(err);
+    // Manejo de errores de conexión a DB
+    app.get('/', (req, res) => res.render('pug', { title: 'Error', message: 'Unable to connect to DB' }));
 });
 
-// ----------------------
-// Start server (Uses the 'http' server created at the top)
-// ----------------------
+// --- Iniciar Servidor: CORRECTO ---
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => console.log(`Listening on port ${PORT}`));

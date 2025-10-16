@@ -19,8 +19,13 @@ module.exports = function (app, myDataBase) {
     }
   );
 
-  app.route('/profile').get(ensureAuthenticated, (req, res) => {
-    res.render('profile', { username: req.user.username || req.user.name });
+  app.route('/profile').get(ensureAuthenticated, (req, res, next) => {
+    try {
+      res.render('profile', { username: req.user.username || req.user.name });
+    } catch (err) {
+      console.error('Error en /profile:', err);
+      next(err);
+    }
   });
 
   // ✅ Route for /chat, protected and passes user

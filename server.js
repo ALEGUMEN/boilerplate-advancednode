@@ -1,76 +1,143 @@
 'use strict';
+require('dotenv').config();
+const express = require('express');
+const session = require('express-session');
+const passport = require('passport');
+const path = require('path');
+const fccTesting = require('./freeCodeCamp/fcctesting.js');
+const myDB = require('./connection');
 
-const express      = require('express');
-const session      = require('express-session');
-const bodyParser   = require('body-parser');
-const fccTesting   = require('./freeCodeCamp/fcctesting.js');
-const auth         = require('./app/auth.js');
-const routes       = require('./app/routes.js');
-const mongo        = require('mongodb').MongoClient;
-const passport     = require('passport');
+// ADDED: Dependencies for Socket.IO Authorization
+const passportSocketIo = require('passport.socketio');
 const cookieParser = require('cookie-parser');
-const cors         = require('cors');
-const http         = require('http');           // ✅ use http.createServer
-const socketio     = require('socket.io');      // ✅ require socket.io
+const MongoStore = require('connect-mongo')(session); 
 
-const app = express();
-const sessionStore = new session.MemoryStore();
+const app = express(); // <-- APP DEFINED FIRST
 
-/* ---------- ENV VARIABLES ----------
-SESSION_SECRET=yourSecret
-DATABASE=yourMongoURI
-GITHUB_CLIENT_ID=yourGithubID
-GITHUB_CLIENT_SECRET=yourGithubSecret
------------------------------------- */
+// ----------------------
+// HTTP + Socket.IO (Correct instantiation for the challenge)
+// ----------------------
+const http = require('http').createServer(app); // Uses the app instance
+const io = require('socket.io')(http); // Binds socket.io to the http server
+// ----------------------
 
-app.use(cors());
-fccTesting(app); // For FCC tests
+// ... (The rest of your middleware setup)
 
-// ---------- Middleware ----------
-app.use('/public', express.static(process.cwd() + '/public'));
-app.use(cookieParser());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// ----------------------
+// Middlewares
+// ----------------------
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/public', express.static(path.join(process.cwd(), 'public')));
+
+// CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  next();
+});
+
+// View engine
+app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: true,
-    saveUninitialized: true,
-    key: 'express.sid',
-    store: sessionStore,
-  })
-);
+// Session + Passport
+const mySecret = process.env.SESSION_SECRET || 'putanythinghere';
+const URI = process.env.MONGO_URI;
+const store = new MongoStore({ url: URI }); 
 
+app.use(session({
+  secret: mySecret,
+  resave: true,
+  saveUninitialized: true,
+  cookie: { secure: false },
+  key: 'express.sid', // Using express.sid as it was in your previous attempt
+  store: store
+}));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ---------- MongoDB + App Setup ----------
-mongo.connect(process.env.DATABASE, (err, client) => {
-  if (err) {
-    console.error('Database error: ' + err);
-  } else {
-    console.log('Database connection successful');
-  }
+// FCC Testing
+fccTesting(app);
 
-  const db = client.db('chat'); // Your DB name
+// Define auth success/fail functions for passport.socketio
+function onAuthorizeSuccess(data, accept) {
+  console.log('successful connection to socket.io');
+  accept(null, true);
+}
 
-  // Import authentication and routes
-  auth(app, db);
-  routes(app, db);
+function onAuthorizeFail(data, message, error, accept) {
+  if (error) throw new Error(message);
+  console.log('failed connection to socket.io:', message);
+  accept(null, false);
+}
 
-  // ---------- SOCKET.IO SETUP ----------
-  const httpServer = http.createServer(app);   // ✅ create server from app
-  const io = socketio(httpServer);             // ✅ attach socket.io to it
+// Socket.IO authorization middleware
+io.use(
+  passportSocketIo.authorize({
+    cookieParser: cookieParser,
+    key: 'express.sid', 
+    secret: mySecret,   
+    store: store,
+    success: onAuthorizeSuccess,
+    fail: onAuthorizeFail
+  })
+);
 
-  io.on('connection', socket => {
-    console.log('A user has connected');
-  });
 
-  // ---------- Start Server ----------
-  const PORT = process.env.PORT || 3000;
-  httpServer.listen(PORT, () => {
-    console.log('Listening on port ' + PORT);
-  });
+// ----------------------
+// Connect to MongoDB
+// ----------------------
+myDB(async (client) => {
+  const myDataBase = client.db('fcc').collection('users');
+
+  // Auth + Routes
+  require('./auth.js')(app, myDataBase);
+  require('./routes.js')(app, myDataBase);
+
+  // ----------------------
+  // Socket.IO connections
+  // ----------------------
+  // CRITICAL FIX: Initialize currentUsers inside the DB block to ensure persistence
+  let currentUsers = 0; 
+
+  io.on('connection', socket => {
+    console.log('A user has connected');
+    currentUsers++;
+    
+    // Emit connection event
+    io.emit('user', {
+      name: socket.request.user.name,
+      currentUsers,
+      connected: true
+    });
+
+    // Escuchar mensajes del cliente
+    socket.on('chat message', message => {
+      io.emit('chat message', { name: socket.request.user.name, message: message });
+    });
+
+    // Manejar desconexión
+    socket.on('disconnect', () => {
+      console.log('A user has disconnected');
+      currentUsers--;
+      // Emit disconnection event
+      io.emit('user', {
+        name: socket.request.user.name,
+        currentUsers,
+        connected: false
+      });
+    });
+  });
+
+}).catch(err => {
+  console.error(err);
+  app.get('/', (req, res) => res.render('pug', { title: 'Error', message: 'Unable to connect to DB' }));
 });
+
+// ----------------------
+// Start server (Uses the 'http' server created at the top)
+// ----------------------
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => console.log(`Listening on port ${PORT}`));

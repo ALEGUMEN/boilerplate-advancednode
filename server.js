@@ -102,34 +102,31 @@ myDB(async (client) => {
   // CRITICAL FIX: Initialize currentUsers inside the DB block to ensure persistence
   let currentUsers = 0; 
 
-  io.on('connection', socket => {
-    console.log('A user has connected');
-    currentUsers++;
-    
-    // Emit connection event
-    io.emit('user', {
-      name: socket.request.user.name,
-      currentUsers,
-      connected: true
-    });
+	io.on('connection', socket => {
+		console.log('A user has connected');
+		currentUsers++;
+		// Usar nombre genérico si no está autenticado
+		const name = (socket.request.user && socket.request.user.name) ? socket.request.user.name : 'Anonymous';
+		io.emit('user', {
+			name,
+			currentUsers,
+			connected: true
+		});
 
-    // Escuchar mensajes del cliente
-    socket.on('chat message', message => {
-      io.emit('chat message', { name: socket.request.user.name, message: message });
-    });
+		socket.on('chat message', message => {
+			io.emit('chat message', { name, message });
+		});
 
-    // Manejar desconexión
-    socket.on('disconnect', () => {
-      console.log('A user has disconnected');
-      currentUsers--;
-      // Emit disconnection event
-      io.emit('user', {
-        name: socket.request.user.name,
-        currentUsers,
-        connected: false
-      });
-    });
-  });
+		socket.on('disconnect', () => {
+			console.log('A user has disconnected');
+			currentUsers--;
+			io.emit('user', {
+				name,
+				currentUsers,
+				connected: false
+			});
+		});
+	});
 
 }).catch(err => {
   console.error(err);

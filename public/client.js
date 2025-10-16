@@ -1,8 +1,7 @@
+let socket = io();
 // public/client.js
 $(document).ready(function () {
-  /*global io*/
-  let socket = io();
-  /* global io */
+  
   socket.on('user', data => {
     console.log(data.name + (data.connected ? ' joined' : ' left'));
   });

@@ -16,6 +16,17 @@ module.exports = function (app, myDataBase) {
       done(null, doc);
     });
   });
+    // Ruta para iniciar login con GitHub
+    app.route('/auth/github')
+      .get(passport.authenticate('github'));
+
+    // Ruta para el callback de GitHub
+    app.route('/auth/github/callback')
+      .get(passport.authenticate('github', {
+        failureRedirect: '/'
+      }), (req, res) => {
+        res.redirect('/profile');
+      });
   
   passport.use(new GitHubStrategy({
     clientID: GITHUB_CLIENT_ID,

@@ -1,11 +1,11 @@
 'use strict';
 require('dotenv').config();
 const express = require('express');
+const myDB = require('./connection');
+const fccTesting = require('./freeCodeCamp/fcctesting.js');
 const session = require('express-session');
 const passport = require('passport');
 const path = require('path');
-const fccTesting = require('./freeCodeCamp/fcctesting.js');
-const myDB = require('./connection');
 
 // Socket.IO dependencies
 const passportSocketIo = require('passport.socketio');
@@ -18,7 +18,12 @@ const app = express();
 // HTTP + Socket.IO
 // ----------------------
 const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const io = require('socket.io')(http, {
+    cors: {
+    origin: '*',            // <--- necesario para pasar el test 5
+    methods: ['GET', 'POST']
+  }
+})
 
 // ----------------------
 // Middlewares
@@ -55,7 +60,7 @@ app.use(session({
   resave: true,
   saveUninitialized: true,
   cookie: { secure: false },
-  key: 'session', // <-- cambio crítico para FCC
+  key: 'session', 
   store: store
 }));
 
@@ -82,7 +87,7 @@ function onAuthorizeFail(data, message, error, accept) {
 io.use(
   passportSocketIo.authorize({
     cookieParser: cookieParser,
-    key: 'session',  // <-- debe coincidir con express-session
+    key: 'session',  
     secret: mySecret,
     store: store,
     success: onAuthorizeSuccess,
@@ -136,7 +141,9 @@ myDB(async (client) => {
 
 }).catch(err => {
   console.error(err);
-  app.get('/', (req, res) => res.render('pug', { title: 'Error', message: 'Unable to connect to DB' }));
+  app.get('/', (req, res) => 
+    res.render('pug', { title: 'Error', message: 'Unable to connect to DB' })
+);
 });
 
 // ----------------------

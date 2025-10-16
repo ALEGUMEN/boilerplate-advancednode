@@ -20,8 +20,9 @@ module.exports = function (app, myDataBase) {
   );
 
   app.route('/profile').get(ensureAuthenticated, (req, res, next) => {
+    console.log('req.user:', req.user);
     try {
-      res.render('profile', { username: req.user.username || req.user.name });
+      res.render('profile', { username: req.user && (req.user.username || req.user.name) });
     } catch (err) {
       console.error('Error en /profile:', err);
       next(err);

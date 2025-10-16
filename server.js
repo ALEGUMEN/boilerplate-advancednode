@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 });
 
 // View engine
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, 'views', 'pug'));
 app.set('view engine', 'pug');
 
 // Session + Passport

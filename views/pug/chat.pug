@@ -1,24 +1,52 @@
-// This file's full path should be /views/chat.pug
+// /views/pug/chat.pug
 html
   head
     title FCC Advanced Node and Express Chat
-    meta(name='description', content='Chat Room')
     meta(charset='utf-8')
-    meta(http-equiv='X-UA-Compatible', content='IE=edge')
     meta(name='viewport', content='width=device-width, initial-scale=1')
     link(rel='stylesheet', href='/public/style.css')
   body
     h1.border.center FCC Advanced Node and Express
     h2.center Socket.IO Chat Room
+
     .chat.center
       p Welcome, #{user.name || user.username}!
       p#num-users 0 users online
       .chat-box
         ul#messages
-        form(action='')
+        form#form(action='')
           input#m(autocomplete='off')
           button Send
       a#logout(href='/logout') Logout
+
+    // Socket.IO + cliente inline
     script(src="/socket.io/socket.io.js")
-    script(src="https://code.jquery.com/jquery-3.5.1.min.js")
-    script(src="/public/client.js")
+    script.
+      // Conexión Socket.IO
+      const socket = io();
+
+      // Actualizar número de usuarios
+      socket.on('user', data => {
+        document.getElementById('num-users').textContent = `${data.currentUsers} users online`;
+      });
+
+      // Formulario de envío de mensajes
+      const form = document.getElementById('form');
+      const input = document.getElementById('m');
+      const messages = document.getElementById('messages');
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        if (input.value) {
+          socket.emit('chat message', input.value);
+          input.value = '';
+        }
+      });
+
+      // Recibir mensajes
+      socket.on('chat message', data => {
+        const item = document.createElement('li');
+        item.textContent = `${data.name}: ${data.message}`;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      });

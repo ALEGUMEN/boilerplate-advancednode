@@ -20,7 +20,8 @@ module.exports = function (app, myDataBase) {
   passport.use(new GitHubStrategy({
     clientID: GITHUB_CLIENT_ID,
     clientSecret: GITHUB_CLIENT_SECRET,
-    callbackURL: 'https://boilerplate-advancednode-s02l.onrender.com/auth/github/callback'
+    callbackURL:  process.env.APP_URL + '/auth/github/callback' ||
+  'http://localhost:3000/auth/github/callback'
   },
     function(accessToken, refreshToken, profile, cb) {
       console.log(profile);

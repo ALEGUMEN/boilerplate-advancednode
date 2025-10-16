@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 
 module.exports = function (app, myDataBase) {
   app.route('/').get((req, res) => {
-    res.render('pug', {
+    res.render('index', {
       title: 'Connected to Database',
       message: 'Please login',
       showLogin: true,

@@ -15,7 +15,8 @@ module.exports = function (app, myDataBase) {
     res.redirect('/profile');
   });
   app.route('/profile').get(ensureAuthenticated, (req, res) => {
-    res.render(process.cwd() + 'pug/profile', { username: req.user.username });
+    res.render('profile', { username: req.user.username });
+
   });
   
   // ADDED: New GET route for /chat, renders 'chat.pug'
@@ -23,10 +24,13 @@ module.exports = function (app, myDataBase) {
     res.render('chat', { user: req.user }); 
   });  
 
-  app.route('/logout').get((req, res) => {
-      req.logout();
+    app.route('/logout').get((req, res, next) => {
+    req.logout(err => {
+      if (err) return next(err);
       res.redirect('/');
-  }); 
+    });
+  });
+
   app.route('/register').post(
     (req, res, next) => {
       const hash = bcrypt.hashSync(req.body.password, 12);

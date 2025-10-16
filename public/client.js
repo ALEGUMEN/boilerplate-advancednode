@@ -1,17 +1,8 @@
+/*global io*/
 let socket = io();
-// public/client.js
+
 $(document).ready(function () {
-  
-  socket.on('user', data => {
-    console.log(data.name + (data.connected ? ' joined' : ' left'));
-  });
 
-  socket.on('chat message', data => {
-    console.log(`${data.name}: ${data.message}`);
-  });
-
-
-  // CRITICAL: The server sends a 'user' event upon connection/disconnection
   socket.on('user', data => {
     $('#num-users').text(data.currentUsers + ' users online');
     let message =
@@ -20,21 +11,14 @@ $(document).ready(function () {
     $('#messages').append($('<li>').html('<b>' + message + '</b>'));
   });
 
-  // CRITICAL: The server sends a 'chat message' event
-  socket.on('chat message', (data) => {
+  socket.on('chat message', data => {
     $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
   });
 
-  // Form submittion with new message in field with id 'm'
   $('form').submit(function () {
-    var messageToSend = $('#m').val();
-
-    // The client must emit 'chat message' with the message content
+    let messageToSend = $('#m').val();
     socket.emit('chat message', messageToSend);
     $('#m').val('');
-    return false; // prevent form submit from refreshing page
+    return false;
   });
 });
-
-
-

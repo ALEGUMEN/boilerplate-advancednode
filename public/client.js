@@ -1,24 +1,29 @@
-/*global io*/
-let socket = io();
+// /public/client.js
+const socket = io();
 
-$(document).ready(function () {
+// Contador de usuarios y mensaje de conexión/desconexión
+socket.on('user', data => {
+  document.getElementById('num-users').textContent =
+    data.currentUsers + ' users online';
+  
+  const li = document.createElement('li');
+  li.innerHTML = `<b>${data.name}${data.connected ? ' has joined the chat.' : ' has left the chat.'}</b>`;
+  document.getElementById('messages').appendChild(li);
+});
 
-  socket.on('user', data => {
-    $('#num-users').text(data.currentUsers + ' users online');
-    let message =
-      data.name +
-      (data.connected ? ' has joined the chat.' : ' has left the chat.');
-    $('#messages').append($('<li>').html('<b>' + message + '</b>'));
-  });
+// Escuchar mensajes
+socket.on('chat message', data => {
+  const li = document.createElement('li');
+  li.textContent = `${data.name}: ${data.message}`;
+  document.getElementById('messages').appendChild(li);
+});
 
-  socket.on('chat message', data => {
-    $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
-  });
-
-  $('form').submit(function () {
-    let messageToSend = $('#m').val();
-    socket.emit('chat message', messageToSend);
-    $('#m').val('');
-    return false;
-  });
+// Enviar mensajes
+document.querySelector('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const input = document.getElementById('m');
+  if (input.value) {
+    socket.emit('chat message', input.value);
+    input.value = '';
+  }
 });

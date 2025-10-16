@@ -2,6 +2,15 @@
 $(document).ready(function () {
   /*global io*/
   let socket = io();
+  /* global io */
+  socket.on('user', data => {
+    console.log(data.name + (data.connected ? ' joined' : ' left'));
+  });
+
+  socket.on('chat message', data => {
+    console.log(`${data.name}: ${data.message}`);
+  });
+
 
   // CRITICAL: The server sends a 'user' event upon connection/disconnection
   socket.on('user', data => {

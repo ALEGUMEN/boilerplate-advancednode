@@ -1,5 +1,5 @@
 /*global io*/
-let socket = io();
+const socket = io();
 
 $(document).ready(function () {
 

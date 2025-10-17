@@ -1,12 +1,24 @@
-$(document).ready(function() {
-  /* global io */
+$( document ).ready(function() {
+  
+  
+   /*global io*/
   var socket = io();
-
-  // Add this block to listen for the 'user count' event
-  socket.on('user count', function(data) {
-    console.log(data); // You can log the data to verify it's received
+  
+  socket.on('user count', function(data){
+    console.log('A user connect');
   });
-
-  // ... (rest of your client-side code)
+  
+  socket.on('user count', function(data){
+    console.log('A user disconnect');
+  });
+  
+  // Form submittion with new message in field with id 'm'
+  $('form').submit(function(){
+    var messageToSend = $('#m').val();
+    //send message to server here?
+    $('#m').val('');
+    return false; // prevent form submit from refreshing page
+  });
+  
+    
 });
-

@@ -17,7 +17,7 @@ const io          = require('socket.io')(http);
 
 app.use(cors());
 
-fccTesting(app); //For FCC testing purposes
+fccTesting(app); // For FCC testing purposes
 
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use(cookieParser());
@@ -35,7 +35,7 @@ app.use(session({
 
 let currentUsers = 0;
 
-mongo.connect(process.env.DATABASE, (err, db) => {
+mongo.connect(process.env.MONGO_URI, (err, db) => {
   if (err) {
     console.log('Database error: ' + err);
     return;
@@ -49,7 +49,7 @@ mongo.connect(process.env.DATABASE, (err, db) => {
   });
 
   // start socket.io code  
-    io.on('connection', (socket) => {
+  io.on('connection', (socket) => {
     console.log('A user has connected');
     ++currentUsers;
     io.emit('user count', currentUsers);

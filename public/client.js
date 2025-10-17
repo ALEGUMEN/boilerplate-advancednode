@@ -2,16 +2,19 @@ $(document).ready(function() {
   /* global io */
   var socket = io();
 
-  // 🔥 Escucha los cambios en el conteo de usuarios
-  socket.on('user count', function(data) {
-    console.log('Current users:', data);
-  });
-
-  // Form submission (aún no envías mensajes en este desafío)
   $('form').submit(function() {
     var messageToSend = $('#m').val();
-    // Enviar mensaje al servidor (se hará en el siguiente paso)
     $('#m').val('');
-    return false; 
+    return false;
+  });
+
+  // 🔹 Escuchar evento 'user'
+  socket.on('user', data => {
+    $('#num-users').text(data.currentUsers + ' users online');
+    let message =
+      data.username +
+      (data.connected ? ' has joined the chat.' : ' has left the chat.');
+    $('#messages').append($('<li>').html('<b>' + message + '</b>'));
   });
 });
+

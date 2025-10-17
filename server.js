@@ -80,16 +80,24 @@ mongo.connect(process.env.MONGO_URI, (err, db) => {
   });
 
   // 🔹 Código de socket.io
-  io.on('connection', (socket) => {
+    io.on('connection', (socket) => {
     console.log('user ' + socket.request.user.username + ' connected');
 
     ++currentUsers;
-    io.emit('user count', currentUsers);
+    io.emit('user', {
+      username: socket.request.user.username,
+      currentUsers,
+      connected: true
+    });
 
     socket.on('disconnect', () => {
       console.log('user ' + socket.request.user.username + ' disconnected');
       --currentUsers;
-      io.emit('user count', currentUsers);
+      io.emit('user', {
+        username: socket.request.user.username,
+        currentUsers,
+        connected: false
+      });
     });
   });
 });

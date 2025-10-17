@@ -1,11 +1,12 @@
-/* global io */
-let socket = io(); // <-- esta línea crea la conexión
-
 $(document).ready(function () {
+  /*global io*/
+  let socket = io();
+  
+  // Form submittion with new message in field with id 'm'
   $('form').submit(function () {
-    let messageToSend = $('#m').val();
-    socket.emit('chat message', messageToSend); // opcional para mensajes
+    var messageToSend = $('#m').val();
+
     $('#m').val('');
-    return false; // prevent form submit
+    return false; // prevent form submit from refreshing page
   });
 });

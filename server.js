@@ -90,6 +90,13 @@ mongo.connect(process.env.MONGO_URI, (err, db) => {
       connected: true
     });
 
+    socket.on('chat message', (message) => {
+      io.emit('chat message', {
+      username: socket.request.user.username,
+      message: message
+      });
+    });
+    
     socket.on('disconnect', () => {
       console.log('user ' + socket.request.user.username + ' disconnected');
       --currentUsers;

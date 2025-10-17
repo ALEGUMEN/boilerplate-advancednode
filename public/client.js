@@ -1,50 +1,30 @@
 $(document).ready(function () {
-  /*global io*/
+  /* global io */
+  console.log('Cliente listo');
 
-  console.log('Cliente: document ready'); // pista inicial
+  const socket = io({
+    transports: ['websocket', 'polling'],
+    secure: true,
+    reconnection: true,
+    reconnectionAttempts: 5,
+  });
 
-  // Conexión al servidor Socket.IO
+  socket.on('connect', () => {
+    console.log('✅ Cliente conectado al socket:', socket.id);
+  });
 
-  let socket = io({ transports: ['websocket'], secure: true });
+  socket.on('disconnect', () => {
+    console.log('❌ Cliente desconectado del socket');
+  });
 
-  try {
-    socket = io();
-    console.log('Cliente: objeto socket creado', socket);
-  } catch (err) {
-    console.error('Cliente: error al crear socket', err);
-  }
+  socket.on('user count', (count) => {
+    $('#num-users').text(`Usuarios conectados: ${count}`);
+  });
 
-  // Evento de conexión
-  if (socket) {
-    socket.on('connect', () => {
-      console.log('Cliente conectado al socket con id:', socket.id);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Cliente desconectado del socket');
-    });
-
-    // Escuchar conteo de usuarios
-    socket.on('user count', (count) => {
-      console.log('Usuarios conectados:', count);
-      $('#num-users').text(`Usuarios conectados: ${count}`);
-    });
-
-    // Escuchar mensajes del chat
-    socket.on('chat message', (data) => {
-      console.log('Mensaje recibido:', data);
-      $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
-    });
-  }
-
-  // Form submit con mensaje
   $('form').submit(function () {
     const messageToSend = $('#m').val();
-    console.log('Cliente: enviando mensaje ->', messageToSend);
-
-    if (socket) socket.emit('chat message', messageToSend);
-
+    socket.emit('chat message', messageToSend);
     $('#m').val('');
-    return false; // prevenir refresco de la página
+    return false;
   });
 });

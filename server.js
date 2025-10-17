@@ -18,12 +18,7 @@ const app = express();
 // HTTP + Socket.IO
 // ----------------------
 const http = require('http').createServer(app);
-const io = require('socket.io')(http, {
-    cors: {
-    origin: '*',            // <--- necesario para pasar el test 5
-    methods: ['GET', 'POST']
-  }
-})
+const io = require('socket.io')(http);
 
 // ----------------------
 // Middlewares
@@ -113,7 +108,10 @@ myDB(async (client) => {
   io.on('connection', socket => {
     console.log('A user has connected');
 
-    currentUsers++;
+    ++currentUsers;
+    io.emit('user count', currentUsers);
+    
+    //opcional
     const name = (socket.request.user && socket.request.user.name) 
                   ? socket.request.user.name 
                   : 'Anonymous';
@@ -130,7 +128,8 @@ myDB(async (client) => {
 
     socket.on('disconnect', () => {
       console.log('A user has disconnected');
-      currentUsers--;
+      --currentUsers;
+      io.emit('user count', currentUsers); // actualizar contador
       io.emit('user', {
         name,
         currentUsers,

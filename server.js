@@ -60,7 +60,7 @@ app.use(session({
   resave: true,
   saveUninitialized: true,
   cookie: { secure: false },
-  key: 'session', 
+  key: 'express.sid', 
   store: store
 }));
 
@@ -87,7 +87,7 @@ function onAuthorizeFail(data, message, error, accept) {
 io.use(
   passportSocketIo.authorize({
     cookieParser: cookieParser,
-    key: 'session',  
+    key: 'express.sid',  
     secret: mySecret,
     store: store,
     success: onAuthorizeSuccess,

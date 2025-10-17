@@ -4,7 +4,9 @@ $(document).ready(function () {
   console.log('Cliente: document ready'); // pista inicial
 
   // Conexión al servidor Socket.IO
-  let socket;
+
+  let socket = io({ transports: ['websocket'], secure: true });
+
   try {
     socket = io();
     console.log('Cliente: objeto socket creado', socket);

@@ -2,10 +2,8 @@ $(document).ready(function () {
   /* global io */
   console.log('Cliente listo');
 
-  const socket = io('https://boilerplate-advancednode-s02l.onrender.com', {
-  transports: ['websocket'],
-  secure: true
-});
+  // Simple conexión para que FCC lo detecte
+  const socket = io();
 
   socket.on('connect', () => {
     console.log('✅ Cliente conectado al socket:', socket.id);
@@ -15,14 +13,24 @@ $(document).ready(function () {
     console.log('❌ Cliente desconectado del socket');
   });
 
+  // Este es el evento que FCC espera
   socket.on('user count', (count) => {
+    console.log('Usuarios conectados:', count);
     $('#num-users').text(`Usuarios conectados: ${count}`);
   });
 
+  // Enviar mensaje
   $('form').submit(function () {
     const messageToSend = $('#m').val();
-    socket.emit('chat message', messageToSend);
+    if (messageToSend.trim() !== '') {
+      socket.emit('chat message', messageToSend);
+    }
     $('#m').val('');
     return false;
+  });
+
+  // Recibir mensajes
+  socket.on('chat message', function(data) {
+    $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
   });
 });

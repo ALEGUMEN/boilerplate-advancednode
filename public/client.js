@@ -1,24 +1,17 @@
-$( document ).ready(function() {
-  
-  
-   /*global io*/
+$(document).ready(function() {
+  /* global io */
   var socket = io();
-  
-  socket.on('user count', function(data){
-    console.log('A user connect');
+
+  // 🔥 Escucha los cambios en el conteo de usuarios
+  socket.on('user count', function(data) {
+    console.log('Current users:', data);
   });
-  
-  socket.on('user count', function(data){
-    console.log('A user disconnect');
-  });
-  
-  // Form submittion with new message in field with id 'm'
-  $('form').submit(function(){
+
+  // Form submission (aún no envías mensajes en este desafío)
+  $('form').submit(function() {
     var messageToSend = $('#m').val();
-    //send message to server here?
+    // Enviar mensaje al servidor (se hará en el siguiente paso)
     $('#m').val('');
-    return false; // prevent form submit from refreshing page
+    return false; 
   });
-  
-    
 });

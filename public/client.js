@@ -1,30 +1,48 @@
-/*global io*/
-let socket = io(); // conecta el cliente al servidor
+$(document).ready(function () {
+  /*global io*/
 
-// Mostrar número de usuarios conectados
-socket.on('user count', (count) => {
-  const el = document.getElementById('num-users');
-  if(el) el.textContent = `Usuarios conectados: ${count}`;
-});
+  console.log('Cliente: document ready'); // pista inicial
 
-// Escuchar mensajes del chat
-socket.on('chat message', (data) => {
-  const ul = document.getElementById('messages');
-  if (ul) {
-    const li = document.createElement('li');
-    li.textContent = `${data.name}: ${data.message}`;
-    ul.appendChild(li);
+  // Conexión al servidor Socket.IO
+  let socket;
+  try {
+    socket = io();
+    console.log('Cliente: objeto socket creado', socket);
+  } catch (err) {
+    console.error('Cliente: error al crear socket', err);
   }
-});
 
-// Enviar mensaje del formulario
-const form = document.querySelector('form');
-const input = document.getElementById('m');
+  // Evento de conexión
+  if (socket) {
+    socket.on('connect', () => {
+      console.log('Cliente conectado al socket con id:', socket.id);
+    });
 
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  if(input.value) {
-    socket.emit('chat message', input.value);
-    input.value = '';
+    socket.on('disconnect', () => {
+      console.log('Cliente desconectado del socket');
+    });
+
+    // Escuchar conteo de usuarios
+    socket.on('user count', (count) => {
+      console.log('Usuarios conectados:', count);
+      $('#num-users').text(`Usuarios conectados: ${count}`);
+    });
+
+    // Escuchar mensajes del chat
+    socket.on('chat message', (data) => {
+      console.log('Mensaje recibido:', data);
+      $('#messages').append($('<li>').text(`${data.name}: ${data.message}`));
+    });
   }
+
+  // Form submit con mensaje
+  $('form').submit(function () {
+    const messageToSend = $('#m').val();
+    console.log('Cliente: enviando mensaje ->', messageToSend);
+
+    if (socket) socket.emit('chat message', messageToSend);
+
+    $('#m').val('');
+    return false; // prevenir refresco de la página
+  });
 });

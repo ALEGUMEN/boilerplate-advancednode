@@ -26,6 +26,7 @@ module.exports = function (app, myDataBase) {
       passport.authenticate('local', { failureRedirect: '/' }),
       (req, res) => res.redirect('/profile')
     );
+  
 
   // 👤 Perfil (solo autenticados)
   app.route('/profile')

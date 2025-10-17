@@ -2,12 +2,10 @@ $(document).ready(function () {
   /* global io */
   console.log('Cliente listo');
 
-  const socket = io({
-    transports: ['websocket', 'polling'],
-    secure: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-  });
+  const socket = io('https://boilerplate-advancednode-s02l.onrender.com', {
+  transports: ['websocket'],
+  secure: true
+});
 
   socket.on('connect', () => {
     console.log('✅ Cliente conectado al socket:', socket.id);

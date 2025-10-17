@@ -30,7 +30,6 @@ module.exports = function (app, myDataBase) {
   // 👤 Perfil (solo autenticados)
   app.route('/profile')
     .get(ensureAuthenticated, (req, res, next) => {
-      console.log('req.user:', req.user);
       try {
         res.render('profile', { 
           username: req.user && (req.user.username || req.user.name) 
@@ -63,24 +62,23 @@ module.exports = function (app, myDataBase) {
 
   // 📝 Registro de usuario
   app.route('/register')
-    .post(
-      (req, res, next) => {
-        const hash = bcrypt.hashSync(req.body.password, 12);
-        myDataBase.findOne({ username: req.body.username }, (err, user) => {
-          if (err) return next(err);
-          if (user) return res.redirect('/');
-          myDataBase.insertOne(
-            { username: req.body.username, password: hash },
-            (err, doc) => {
-              if (err) return res.redirect('/');
-              next(null, doc.ops[0]);
-            }
-          );
+    .post((req, res, next) => {
+      const hash = bcrypt.hashSync(req.body.password, 12);
+      myDataBase.findOne({ username: req.body.username }, (err, user) => {
+        if (err) return next(err);
+        if (user) return res.redirect('/');
+
+        myDataBase.insertOne({ username: req.body.username, password: hash }, (err, doc) => {
+          if (err) return res.redirect('/');
+
+          // Loguear automáticamente el usuario recién creado
+          req.login(doc.ops[0], (err) => {
+            if (err) return next(err);
+            res.redirect('/profile');
+          });
         });
-      },
-      passport.authenticate('local', { failureRedirect: '/' }),
-      (req, res) => res.redirect('/profile')
-    );
+      });
+    });
 
   // 🚪 Logout (compatible con Passport >= 0.6)
   app.route('/logout')
